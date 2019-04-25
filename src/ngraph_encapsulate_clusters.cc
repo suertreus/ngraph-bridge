@@ -35,7 +35,6 @@
 #include "tensorflow/core/platform/protobuf.h"
 #include "tensorflow/core/util/device_name_utils.h"
 
-
 #include "ngraph_api.h"
 #include "ngraph_assign_clusters.h"
 #include "ngraph_cluster_manager.h"
@@ -72,7 +71,8 @@ static void AddInput(NodeDef* dst, StringPiece src_name, int src_slot) {
 }
 // ...end code copied and pasted (and modified) from graph.cc
 
-Status EncapsulateClusters(Graph* graph, int graph_id, FunctionDefLibrary* fdeflib) {
+Status EncapsulateClusters(Graph* graph, int graph_id,
+                           FunctionDefLibrary* fdeflib) {
   // A map from cluster indices to the expected device name for nodes
   // in that cluster.
   std::map<int, std::string> device_name_map;
@@ -510,7 +510,6 @@ Status EncapsulateClusters(Graph* graph, int graph_id, FunctionDefLibrary* fdefl
         strings::StrCat("Enc_", to_string(cluster_idx), "_native_segment"),
         fdef));
   }
-
 
   // Pass 8 (optional, only run if environment variable
   // NGRAPH_TF_DUMP_CLUSTERS is set): validate the graph def, and
