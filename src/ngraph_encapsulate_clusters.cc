@@ -23,6 +23,7 @@
 #include "tensorflow/core/framework/attr_value_util.h"
 #include "tensorflow/core/framework/function.pb.h"
 #include "tensorflow/core/framework/graph.pb.h"
+#include "tensorflow/core/framework/graph_to_functiondef.h"
 #include "tensorflow/core/framework/node_def_util.h"
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/graph/graph.h"
@@ -33,6 +34,7 @@
 #include "tensorflow/core/platform/default/logging.h"
 #include "tensorflow/core/platform/protobuf.h"
 #include "tensorflow/core/util/device_name_utils.h"
+
 
 #include "ngraph_api.h"
 #include "ngraph_assign_clusters.h"
@@ -70,7 +72,7 @@ static void AddInput(NodeDef* dst, StringPiece src_name, int src_slot) {
 }
 // ...end code copied and pasted (and modified) from graph.cc
 
-Status EncapsulateClusters(Graph* graph, int graph_id) {
+Status EncapsulateClusters(Graph* graph, int graph_id, FunctionDefLibrary* fdeflib) {
   // A map from cluster indices to the expected device name for nodes
   // in that cluster.
   std::map<int, std::string> device_name_map;
@@ -482,7 +484,35 @@ Status EncapsulateClusters(Graph* graph, int graph_id) {
     graph->RemoveNode(node);
   }
 
-  // Pass 7 (optional, only run if environment variable
+  // Pass 7: Insert to function library
+  // TODO: check: seems necessary/applicable only in grappler enabled ngtf,
+  // right?
+
+  // TODO: grappler also optimizes functions. maybe we have to disable that?
+  // GrapplerFunctionItem
+  // flib.ReplaceFunction
+  //  *optimized_graph->mutable_library() = flib.ToProto(); // GraphDef
+  //  *optimized_graph, FunctionLibraryDefinition* flib
+  // optimized_graph->Swap(&optimized_item.graph);
+  // for (const FunctionDef& function : optimized_graph->library().function())
+
+  for (const auto& cluster_idx : NGraphClusterManager::GetClusterIndexes()) {
+    Graph sgraph(graph->flib_def());  // TODO: whats the right flib to use in
+                                      // sgraph's constructor?
+    // TODO: if/when this works, NGraphClusterManager can go away
+    TF_RETURN_IF_ERROR(ConvertGraphDefToGraph(
+        GraphConstructorOptions(),
+        *(NGraphClusterManager::GetClusterGraph(cluster_idx)), &sgraph));
+    FunctionDef* fdef = fdeflib->add_function();
+    // TODO: if func lib has func with same name etc?
+    TF_RETURN_IF_ERROR(GraphToFunctionDef(
+        sgraph,
+        strings::StrCat("Enc_", to_string(cluster_idx), "_native_segment"),
+        fdef));
+  }
+
+
+  // Pass 8 (optional, only run if environment variable
   // NGRAPH_TF_DUMP_CLUSTERS is set): validate the graph def, and
   // make sure we can construct a graph from it.
   if (std::getenv("NGRAPH_TF_DUMP_CLUSTERS")) {
