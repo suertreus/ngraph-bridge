@@ -95,10 +95,11 @@ def get_tensor(graph, tname):
 
 if __name__ == '__main__':
     # Phase 1: Take a graph and dump pbtxt where ngraph encapsulate has been inserted
-    frozen_graph = get_frozen_graph(
-    )  #this is a graphdef, ready for inference (var->const)
+    #this is a graphdef, ready for inference (var->const)
+    frozen_graph = get_frozen_graph()
     dumpdir = 'ngraphified'
     filename = 'ngraphified.pbtxt'
+    # dump ngraph enabled pbtxt by running grappler pass
     create_ngraphified_pbtxt(frozen_graph, dumpdir, filename)
 
     # Phase 2: Run the ngraph enabled graph
