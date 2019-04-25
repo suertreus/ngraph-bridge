@@ -95,7 +95,9 @@ class NGraphEncapsulateOp : public OpKernel {
     graph_def = NGraphClusterManager::GetClusterGraph(m_ngraph_cluster);
 
     if (graph_def == nullptr) {
-      string flib_key = "ngraph_cluster_" + to_string(m_ngraph_cluster);
+      // string flib_key = "ngraph_cluster_" + to_string(m_ngraph_cluster);
+      string flib_key =
+          "Enc_" + to_string(m_ngraph_cluster) + "_native_segment";
       // Read graphdef from function library
       const FunctionLibraryDefinition flib =
           *ctx->function_library()->GetFunctionLibraryDefinition();
