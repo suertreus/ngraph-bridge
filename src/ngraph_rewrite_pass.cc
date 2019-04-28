@@ -1,4 +1,8 @@
-/*******************************************************************************
+/*************
+    << "[GRAPH_REWRITE] NGRAPH_VLOG(2) << "[GRAPH_REWRITE] NGRAPH_VLOG(2)
+    << "[GRAPH_REWRITE] NGRAPH_VLOG(2) << "[GRAPH_REWRITE] NGRAPH_VLOG(2)
+    << "[GRAPH_REWRITE] NGRAPH_VLOG(2) << "[GRAPH_REWRITE] NGRAPH_VLOG(2)
+    << "[GRAPH_REWRITE] NGRAPH_VLOG(2) << "[GRAPH_REWRITE]
  * Copyright 2017-2018 Intel Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -52,8 +56,8 @@ class NGraphRewritePass : public GraphOptimizationPass {
     if (options.graph != nullptr) {
       auto dot_filename = DotFilename(filename_prefix, idx);
       auto pbtxt_filename = PbtxtFilename(filename_prefix, idx);
-      NGRAPH_VLOG(0) << "Dumping main graph to " << dot_filename;
-      NGRAPH_VLOG(0) << "Dumping main graph to " << pbtxt_filename;
+      NGRAPH_VLOG(2) << "[GRAPH_REWRITE] Dumping main graph to " << dot_filename;
+      NGRAPH_VLOG(2) << "[GRAPH_REWRITE] Dumping main graph to " << pbtxt_filename;
 
       GraphToDotFile(options.graph->get(), dot_filename, title);
       GraphToPbTextFile(options.graph->get(), pbtxt_filename);
@@ -66,9 +70,9 @@ class NGraphRewritePass : public GraphOptimizationPass {
       for (auto& kv : *options.partition_graphs) {
         auto dot_filename = DotFilename(filename_prefix, idx, sub_idx);
         auto pbtxt_filename = PbtxtFilename(filename_prefix, idx, sub_idx);
-        NGRAPH_VLOG(0) << "Dumping subgraph " << sub_idx << " to "
+        NGRAPH_VLOG(2) << "[GRAPH_REWRITE] Dumping subgraph " << sub_idx << " to "
                        << dot_filename;
-        NGRAPH_VLOG(0) << "Dumping subgraph " << sub_idx << " to "
+        NGRAPH_VLOG(2) << "[GRAPH_REWRITE] Dumping subgraph " << sub_idx << " to "
                        << pbtxt_filename;
 
         Graph* pg = kv.second.get();
@@ -106,7 +110,7 @@ class NGraphVariableCapturePass : public NGraphRewritePass {
   Status Run(const GraphOptimizationPassOptions& options) override {
     // If we don't get a main graph, log that fact and bail.
     if (options.graph == nullptr) {
-      NGRAPH_VLOG(0) << "NGraphVariableCapturePass: options.graph == nullptr";
+      NGRAPH_VLOG(2) << "[GRAPH_REWRITE] NGraphVariableCapturePass: options.graph == nullptr";
       return Status::OK();
     }
 
@@ -137,7 +141,7 @@ class NGraphVariableCapturePass : public NGraphRewritePass {
       // cluster manager is not overwritten. Which would mean that cluster
       // manager contains stale data from a previous run. Hence evicting cluster
       // manager when rewrite passes are not run.
-      NGRAPH_VLOG(0) << "Not running through nGraph. nGraph not enabled: "
+      NGRAPH_VLOG(2) << "[GRAPH_REWRITE] Not running through nGraph. nGraph not enabled: "
                      << ngraph_not_enabled
                      << " Already processed: " << already_processed;
       NGraphClusterManager::EvictAllClusters();
@@ -181,7 +185,7 @@ class NGraphEncapsulationPass : public NGraphRewritePass {
   Status Run(const GraphOptimizationPassOptions& options) override {
     // If we don't get a main graph, log that fact and bail.
     if (options.graph == nullptr) {
-      NGRAPH_VLOG(0) << "NGraphEncapsulationPass: options.graph == nullptr";
+      NGRAPH_VLOG(2) << "[GRAPH_REWRITE] NGraphEncapsulationPass: options.graph == nullptr";
       return Status::OK();
     }
 
@@ -202,7 +206,7 @@ class NGraphEncapsulationPass : public NGraphRewritePass {
         (!config::IsEnabled()) || (std::getenv("NGRAPH_TF_DISABLE") != nullptr);
     bool already_processed = IsProcessedByNgraphPass(options.graph->get());
     if (ngraph_not_enabled || already_processed) {
-      NGRAPH_VLOG(0) << "Not running through nGraph. nGraph not enabled: "
+      NGRAPH_VLOG(2) << "[GRAPH_REWRITE] Not running through nGraph. nGraph not enabled: "
                      << ngraph_not_enabled
                      << " Already processed: " << already_processed;
       NGraphClusterManager::EvictAllClusters();

@@ -1,4 +1,6 @@
-/*******************************************************************************
+/*************
+    << "[GRAPH_REWRITE] NGRAPH_VLOG(2) << "[GRAPH_REWRITE] NGRAPH_VLOG(2)
+    << "[GRAPH_REWRITE] 
  * Copyright 2019 Intel Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -68,7 +70,7 @@ Status NgraphOptimizer::Optimize(tensorflow::grappler::Cluster* cluster,
       (!config::IsEnabled()) || (std::getenv("NGRAPH_TF_DISABLE") != nullptr);
   bool already_processed = IsProcessedByNgraphPass(&graph);
   if (ngraph_not_enabled || already_processed) {
-    NGRAPH_VLOG(0) << "Not running through nGraph. nGraph not enabled: "
+    NGRAPH_VLOG(2) << "[GRAPH_REWRITE] Not running through nGraph. nGraph not enabled: "
                    << ngraph_not_enabled
                    << " Already processed: " << already_processed;
     NGraphClusterManager::EvictAllClusters();
@@ -197,8 +199,8 @@ void NgraphOptimizer::DumpGraphs(Graph& graph, int idx,
   // If we have a "main" graph, dump that.
   auto dot_filename = DotFilename(filename_prefix, idx);
   auto pbtxt_filename = PbtxtFilename(filename_prefix, idx);
-  NGRAPH_VLOG(0) << "NGTF_OPTIMIZER: Dumping main graph to " << dot_filename;
-  NGRAPH_VLOG(0) << "NGTF_OPTIMIZER: Dumping main graph to " << pbtxt_filename;
+  NGRAPH_VLOG(2) << "[GRAPH_REWRITE] NGTF_OPTIMIZER: Dumping main graph to " << dot_filename;
+  NGRAPH_VLOG(2) << "[GRAPH_REWRITE] NGTF_OPTIMIZER: Dumping main graph to " << pbtxt_filename;
 
   GraphToDotFile(&graph, dot_filename, title);
   GraphToPbTextFile(&graph, pbtxt_filename);
