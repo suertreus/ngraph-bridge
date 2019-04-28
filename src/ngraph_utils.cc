@@ -237,7 +237,8 @@ Status CheckAxisDimInRange(std::vector<int64> axes, size_t rank) {
 
 void NgraphSerialize(const std::string& file_name,
                      const std::shared_ptr<ngraph::Function>& ng_function) {
-  NGRAPH_VLOG(2) << "[SERIALIZE] Serializing graph to: " << file_name << std::endl;
+  NGRAPH_VLOG(2) << "[SERIALIZE] Serializing graph to: " << file_name
+                 << std::endl;
   std::string js = ngraph::serialize(ng_function, 4);
   std::ofstream f;
   f.exceptions(std::ofstream::failbit | std::ofstream::badbit);

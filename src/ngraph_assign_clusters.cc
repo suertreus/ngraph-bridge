@@ -243,9 +243,8 @@ Status CheckNodeClusterAssignmentWRTDeadness(
   if (!DeadnessAnalysis::IsTruePredString(node_pred_string) &&
       node_pred_string != cluster_pred_string) {
     return errors::Internal(
-        "Node ", node->name(), " [", node->type_string(), "]",
-        " Predicate : ", node_pred_string,
-        "should not be clustered in cluster with predicate ",
+        "Node ", node->name(), " [", node->type_string(), "]", " Predicate : ",
+        node_pred_string, "should not be clustered in cluster with predicate ",
         cluster_pred_string);
   }
 
@@ -739,10 +738,10 @@ Status AssignClusters(Graph* graph) {
           if (deadness_itr != deadness_info.end()) {
             auto deadness_predicates_tpl = deadness_itr->second;
             deadness_string +=
-                ("Source[" + to_string(src_encapsulate) +
-                 "] predicate: " + std::get<0>(deadness_predicates_tpl) +
-                 " Destination[" + to_string(dst_encapsulate) +
-                 "] predicate: " + std::get<1>(deadness_predicates_tpl) +
+                ("Source[" + to_string(src_encapsulate) + "] predicate: " +
+                 std::get<0>(deadness_predicates_tpl) + " Destination[" +
+                 to_string(dst_encapsulate) + "] predicate: " +
+                 std::get<1>(deadness_predicates_tpl) +
                  " Neighbours predicates: " +
                  ng::join(std::get<2>(deadness_predicates_tpl)) + "\n");
           }
@@ -778,21 +777,21 @@ Status AssignClusters(Graph* graph) {
           " should match number of edges ", graph->num_edges());
     }
 
-    auto print_reason_summary =
-        [&num_reasons](vector<int> reasons_count,
-                       std::function<bool(EdgeNonContractionReasons)>
-                           forbidden_reasons_filter) {
-          bool first = true;
-          for (int i = 0; i < num_reasons; i++) {
-            if (!forbidden_reasons_filter(
-                    static_cast<EdgeNonContractionReasons>(i))) {
-              std::cout << (first ? "NGTF_SUMMARY: " : "") << reason_string[i]
-                        << ": " << reasons_count[i]
-                        << (i < (num_reasons - 1) ? ", " : "\n");
-              first = false;
-            }
-          }
-        };
+    auto print_reason_summary = [&num_reasons](
+        vector<int> reasons_count,
+        std::function<bool(EdgeNonContractionReasons)>
+            forbidden_reasons_filter) {
+      bool first = true;
+      for (int i = 0; i < num_reasons; i++) {
+        if (!forbidden_reasons_filter(
+                static_cast<EdgeNonContractionReasons>(i))) {
+          std::cout << (first ? "NGTF_SUMMARY: " : "") << reason_string[i]
+                    << ": " << reasons_count[i]
+                    << (i < (num_reasons - 1) ? ", " : "\n");
+          first = false;
+        }
+      }
+    };
     std::cout << "NGTF_SUMMARY: Summary of reasons why a pair of edge "
                  "connected encapsulates did not merge\n";
     print_reason_summary(reason_count_encapsulates, is_forbidden_reason);
