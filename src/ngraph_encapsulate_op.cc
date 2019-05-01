@@ -60,6 +60,8 @@ using NgFunctionIOCache = std::unordered_map<
 
 namespace ngraph_bridge {
 
+static std::shared_ptr<ng::runtime::Tensor> hacky_global_var_ng_tensor;
+
 REGISTER_OP("NGraphEncapsulate")
     .Input("args: Targuments")
     .Attr("Targuments: list(type) >= 0")
@@ -470,8 +472,8 @@ class NGraphEncapsulateOp : public OpKernel {
 
     Timer compute_time;
     std::lock_guard<std::mutex> lock(m_compute_lock);
-    NGRAPH_VLOG(4) << "NGraphEncapsulateOp::Compute starting for cluster "
-                   << m_ngraph_cluster;
+    cout << "NGraphEncapsulateOp::Compute starting for cluster "
+         << m_ngraph_cluster << "\n";
 
     ngraph::Event event_func_maybe_create("FunctionMaybeCreate", name(), "");
     Timer function_lookup_or_create;
@@ -599,7 +601,24 @@ class NGraphEncapsulateOp : public OpKernel {
         }
       }
       input_caches[i] = std::make_pair(current_src_ptr, current_ng_tensor);
-      ng_inputs.push_back(current_ng_tensor);
+      if (m_ngraph_cluster == 1) {
+        if (i == 0) {
+          OP_REQUIRES(ctx, hacky_global_var_ng_tensor != nullptr,
+                      errors::Internal("oops"));
+          ng_inputs.push_back(hacky_global_var_ng_tensor);
+          DumpNGTensor(cout, "in of 1[i=1]", hacky_global_var_ng_tensor);
+          cout << "\n";
+          DumpNGTensor(cout, "possible in of 1[i=1]", current_ng_tensor);
+          cout << "\n====\n";
+        } else {
+          ng_inputs.push_back(current_ng_tensor);
+          DumpNGTensor(cout, "in of 1[i=0]", current_ng_tensor);
+          cout << "\n====\n";
+        }
+      } else {
+        ng_inputs.push_back(current_ng_tensor);
+      }
+      // ng_inputs.push_back(current_ng_tensor);
     }  // for (int i = 0; i < input_shapes.size(); i++)
 
     NGRAPH_VLOG(4) << "NGraphEncapsulateOp::Compute allocated argument tensors "
@@ -727,6 +746,18 @@ class NGraphEncapsulateOp : public OpKernel {
           << m_ngraph_cluster;
       try {
         ng_exec->call(ng_outputs, ng_inputs);
+
+        if (m_ngraph_cluster == 0) {
+          OP_REQUIRES(ctx, hacky_global_var_ng_tensor == nullptr,
+                      errors::Internal("oops1 in enc0"));
+          OP_REQUIRES(ctx, ng_outputs.size() == 1,
+                      errors::Internal("oops2 in enc0"));
+          hacky_global_var_ng_tensor = ng_outputs[0];
+          OP_REQUIRES(ctx, hacky_global_var_ng_tensor != nullptr,
+                      errors::Internal("oops3 in enc0"));
+          DumpNGTensor(cout, "out of 0", hacky_global_var_ng_tensor);
+          cout << "\n====\n";
+        }
       } catch (const std::exception& exp) {
         ng_function = m_ng_function_map[ng_exec];
         BackendManager::UnlockBackend(m_op_backend_name);

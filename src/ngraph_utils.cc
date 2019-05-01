@@ -70,16 +70,16 @@ std::ostream& DumpNGTensor(std::ostream& s, const string& name,
   s << ">{";
   size_t rank = shape.size();
   if (rank == 0) {
-    s << GetScalarFromTensor<float>(t, pos++);
+    s << GetScalarFromTensor<int>(t, pos++);
   } else if (rank <= 2) {
     s << "[";
     for (size_t i = 0; i < shape.at(0); ++i) {
       if (rank == 1) {
-        s << GetScalarFromTensor<float>(t, pos++);
+        s << GetScalarFromTensor<int>(t, pos++);
       } else if (rank == 2) {
         s << "[";
         for (size_t j = 0; j < shape.at(1); ++j) {
-          s << GetScalarFromTensor<float>(t, pos++);
+          s << GetScalarFromTensor<int>(t, pos++);
 
           if (j + 1 < shape.at(1)) {
             s << ", ";
