@@ -14,7 +14,10 @@
 #  limitations under the License.
 # ==============================================================================
 """nGraph TensorFlow bridge fusedMatMul tests.
+<<<<<<< HEAD
 
+=======
+>>>>>>> remotes/origin/sarkars/fusedmatmul_jimin
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -34,51 +37,32 @@ import numpy as np
 
 
 class TestFusedMatMul(NgraphTest):
-    INPUT1_SIZES = [3, 4]
-    INPUT2_SIZES = [4, 6]
-    BIAS_SIZES = [6]
+    @pytest.mark.parametrize(
+        ("filename",),
+        (
+            ('fusedmatmul_0.pbtxt',),  # Relu
+            ('fusedmatmul_1.pbtxt',),  # Relu6
+            ('fusedmatmul_2.pbtxt',),  # No activation
+        ))
+    @pytest.mark.parametrize(("dim1", "dim2", "dim3"), ((3, 2, 2), (3, 4, 5)))
+    def test_fusedmatmul_bias_pbtxt(self, filename, dim1, dim2, dim3):
+        graph = self.import_pbtxt(filename)
+        with graph.as_default() as g:
+            x = self.get_tensor(g, "Placeholder_3:0")
+            y = self.get_tensor(g, "Placeholder_4:0")
+            z = self.get_tensor(g, "Placeholder_5:0")
+            a = self.get_tensor(g, "Relu_1:0")
 
-    def test_fusedmatmul_bias(self):
-        inp1_values = np.random.rand(*self.INPUT1_SIZES)
-        inp2_values = np.random.rand(*self.INPUT2_SIZES)
-        bias_values = np.random.rand(*self.BIAS_SIZES)
+            inp1_values = 10 * np.random.rand(dim1, dim2) - 5
+            inp2_values = 10 * np.random.rand(dim2, dim3) - 5
+            bias_values = 10 * np.random.rand(dim3) - 5
 
-        def run_test(sess):
-            inp1 = array_ops.placeholder(dtypes.float32)
-            inp2 = array_ops.placeholder(dtypes.float32)
-            bias = array_ops.placeholder(dtypes.float32)
-            return sess.run(
-                nn_ops.bias_add(tf.matmul(inp1, inp2), bias), {
-                    inp1: inp1_values,
-                    inp2: inp2_values,
-                    bias: bias_values,
+            def run_test(sess):
+                return sess.run(a, {
+                    x: inp1_values,
+                    y: inp2_values,
+                    z: bias_values,
                 })
 
-        assert np.allclose(
-            self.without_ngraph(run_test), self.with_ngraph(run_test))
-
-    '''
-    # FusedMatMul with Bias Relu need to be added
-    def test_fusedmatmul_bias_relu(self):
-        inp1_values = np.random.rand(*self.INPUT1_SIZES)
-        inp2_values = np.random.rand(*self.INPUT2_SIZES)
-        bias_values = np.random.rand(*self.BIAS_SIZES)
-
-        def run_test(sess):
-            inp1 = array_ops.placeholder(dtypes.float32)
-            inp2 = array_ops.placeholder(dtypes.float32)
-            bias = array_ops.placeholder(dtypes.float32)
-            return sess.run(
-                nn_ops.relu(
-                    nn_ops.bias_add(
-                         tf.matmul(
-                        inp1,inp2), bias),
-                {
-                    inp1: inp1_values,
-                    inp2: inp2_values,
-                    bias: bias_values,
-                }))
-
-        assert np.allclose(
-            self.without_ngraph(run_test), self.with_ngraph(run_test))
-        '''
+            assert np.allclose(
+                self.without_ngraph(run_test), self.with_ngraph(run_test))
