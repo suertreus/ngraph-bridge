@@ -26,10 +26,10 @@ import numpy as np
 from common import NgraphTest
 
 
-class TestFloorOperations(NgraphTest):
+class TestFlibOperations(NgraphTest):
 
     def test_flib_1(self):
-        graph = self.import_pbtxt('flib_graph_1.pbtxt')
+        graph = import_pbtxt('flib_graph_1.pbtxt')
         with graph.as_default() as g:
 
             x = self.get_tensor(g, "Placeholder:0")
