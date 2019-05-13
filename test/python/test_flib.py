@@ -26,7 +26,7 @@ import numpy as np
 from common import NgraphTest
 
 
-class TestFlibOperations(NgraphTest):
+class TestFloorOperations(NgraphTest):
 
     def test_flib_1(self):
         graph = self.import_pbtxt('flib_graph_1.pbtxt')

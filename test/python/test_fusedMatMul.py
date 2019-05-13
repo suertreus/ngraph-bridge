@@ -14,10 +14,6 @@
 #  limitations under the License.
 # ==============================================================================
 """nGraph TensorFlow bridge fusedMatMul tests.
-<<<<<<< HEAD
-
-=======
->>>>>>> remotes/origin/sarkars/fusedmatmul_jimin
 """
 from __future__ import absolute_import
 from __future__ import division
