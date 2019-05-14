@@ -49,9 +49,6 @@ namespace ng = ngraph;
 namespace tensorflow {
 
 // For each I/O tensor, cache TF's data ptr and nGraph's Tensor
-/*using NgFunctionIOCache = std::unordered_map<
-    std::shared_ptr<ngraph::runtime::Executable>,
-    std::vector<std::pair<void*, shared_ptr<ng::runtime::Tensor>>>>;*/
 using NgFunctionIOCache =
     std::vector<std::pair<void*, shared_ptr<ng::runtime::Tensor>>>;
 
@@ -284,7 +281,6 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
       std::shared_ptr<ngraph::runtime::Executable>& ng_exec,
       const std::vector<TensorShape>& input_shapes,
       vector<shared_ptr<ng::runtime::Tensor>>& ng_inputs) {
-    NGRAPH_VLOG(5) << "AllocateTensorInput begin";
     // Allocate tensors for input arguments.
     ngraph::Event event_alloc_input("Input: maybe create", name(), "");
     std::vector<std::unique_ptr<ngraph::Event>> input_copy_events;
@@ -294,37 +290,27 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
     input_caches.resize(input_shapes.size());
 
     for (int i = 0; i < input_shapes.size(); i++) {
-      NGRAPH_VLOG(5) << "AllocateTensorInput begin: " << i;
       ng::Shape ng_shape(input_shapes[i].dims());
       for (int j = 0; j < input_shapes[i].dims(); ++j) {
         ng_shape[j] = input_shapes[i].dim_size(j);
       }
-      NGRAPH_VLOG(5) << "Made shape: " << i;
       ng::element::Type ng_element_type;
       TF_RETURN_IF_ERROR(TFDataTypeToNGraphElementType(ctx->input(i).dtype(),
                                                        &ng_element_type));
-      NGRAPH_VLOG(5) << "Got ET: " << i;
 
       // At the first call of the ng_exec, both last_src_ptr and
       // last_ng_tensor shall point to null. Otherwise, they are retrived
       // from cache.
       void* last_src_ptr = input_caches[i].first;
-      NGRAPH_VLOG(5) << "Got last src ptr: " << i << ": " << last_src_ptr;
       std::shared_ptr<ng::runtime::Tensor> last_ng_tensor =
           input_caches[i].second;
-      NGRAPH_VLOG(5) << "Got last ng tensor: " << i << ": " << last_ng_tensor;
 
       void* current_src_ptr = (void*)DMAHelper::base(&ctx->input(i));
-      NGRAPH_VLOG(5) << "Got current src ptr: " << i << ": " << current_src_ptr;
       std::shared_ptr<ng::runtime::Tensor> current_ng_tensor =
           GetCurrentNgTensor(current_src_ptr, last_src_ptr, last_ng_tensor,
                              false, ng_exec, ng_element_type, ng_shape);
-      NGRAPH_VLOG(5) << "Got current nG tensor: " << i << ": "
-                     << current_ng_tensor << ", "
-                     << current_ng_tensor->get_shape();
 
       if (current_ng_tensor->get_stale()) {
-        NGRAPH_VLOG(5) << "Tensor is stale: " << i;
         try {
           size_t copy_size =
               current_ng_tensor->get_element_count() * ng_element_type.size();
@@ -335,7 +321,6 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
           current_ng_tensor->write(
               current_src_ptr, 0,
               current_ng_tensor->get_element_count() * ng_element_type.size());
-          NGRAPH_VLOG(5) << "Wrote tensor data: " << i;
 
           event_copy_input_next->Stop();
           input_copy_events.push_back(std::move(event_copy_input_next));
@@ -354,7 +339,6 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
     for (auto& next : input_copy_events) {
       ngraph::Event::write_trace(*next.get());
     }
-    NGRAPH_VLOG(5) << "Wrote events back";
 
     return Status::OK();
   }
@@ -552,34 +536,19 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
       size_t output_tensor_count = m_ng_output_tensors.size();
       std::vector<std::unique_ptr<ngraph::Event>> output_copy_events;
       for (size_t i = 0; i < output_tensor_count; ++i) {
-        NGRAPH_VLOG(5) << "Working on output tensor: " << i;
         void* dst_ptr;
         dst_ptr = (void*)DMAHelper::base(allocated_output_tensors[i]);
-        NGRAPH_VLOG(5) << "Got dst ptr: " << i << ": " << dst_ptr;
         std::shared_ptr<ng::runtime::Tensor> dst_ng_tensor;
         dst_ng_tensor = m_ng_output_tensors[i];
-        if (dst_ng_tensor->get_partial_shape().is_static()) {
-          NGRAPH_VLOG(5) << "Got dst_ng_tensor: " << i << ": " << dst_ng_tensor
-                         << ", " << dst_ng_tensor->get_shape();
-        } else {
-          NGRAPH_VLOG(5) << "Got dst_ng_tensor: " << i << ": " << dst_ng_tensor
-                         << ", " << dst_ng_tensor->get_shape();
-        }
         auto ng_element_type = dst_ng_tensor->get_element_type();
-        NGRAPH_VLOG(5) << "Got ET: " << i << ": " << ng_element_type;
         std::unique_ptr<ngraph::Event> event_copy_output_next(new ngraph::Event(
             ("Output_" + std::to_string(i) + "_" +
              std::to_string(dst_ng_tensor->get_element_count() *
                             ng_element_type.size())),
             name(), ""));
-        NGRAPH_VLOG(5) << "Started copy event";
-        NGRAPH_VLOG(5) << "About to read: " << i << ": " << dst_ng_tensor
-                       << ", " << dst_ng_tensor->get_shape();
         dst_ng_tensor->read(dst_ptr, 0, dst_ng_tensor->get_element_count() *
                                             ng_element_type.size());
         dst_ng_tensor->set_stale(true);
-        NGRAPH_VLOG(5) << "Done reading: " << i << ": " << dst_ng_tensor << ", "
-                       << dst_ng_tensor->get_shape();
         event_copy_output_next->Stop();
         output_copy_events.push_back(std::move(event_copy_output_next));
       }
@@ -604,7 +573,6 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
     // Note: these ng_tensors are being marked fresh so that in the next
     // iteration if this encapsulate finds the tensor fresh, then it will use it
     for (int i = 0; i < input_shapes.size(); i++) {
-      NGRAPH_VLOG(5) << "Marking fresh: " << i;
       void* src_ptr = (void*)DMAHelper::base(&ctx->input(i));
       m_freshness_tracker->MarkFresh(src_ptr, ng_exec);
     }
