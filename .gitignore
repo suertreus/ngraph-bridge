@@ -12,3 +12,14 @@ cpu_codegen/
 
 .*.swp
 .nfs*
+
+BUILD
+WORKSPACE
+bazel-bin
+bazel-genfiles
+bazel-ngraph-tf
+bazel-out
+bazel-testlogs
+build_cmake
+cxx_abi_option.bzl
+tf_configure

@@ -172,6 +172,20 @@ Status TFTensorShapeToNGraphShape(const TensorShape& tf_shape,
   return Status::OK();
 }
 
+Status TFTensorShapeToNGraphPartialShape(const TensorShape& tf_shape,
+                                         ngraph::PartialShape* ng_shape) {
+  std::vector<ng::Dimension> ng_dims;
+  for (int i = 0; i < tf_shape.dims(); i++) {
+    ng_dims.push_back(tf_shape.dim_size(i) < 0
+                          ? ng::Dimension::dynamic()
+                          : static_cast<ng::Dimension>(tf_shape.dim_size(i)));
+  }
+
+  *ng_shape = ngraph::PartialShape(ng_dims);
+
+  return Status::OK();
+}
+
 void print_node_histogram(const std::unordered_map<string, int>& histogram,
                           bool sorted) {
   int histogram_size = histogram.size();

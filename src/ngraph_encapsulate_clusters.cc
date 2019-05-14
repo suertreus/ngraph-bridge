@@ -328,7 +328,10 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
     }
 
     Node* n;
-    Status status = NodeBuilder(ss.str(), "NGraphEncapsulate")
+    const char* node_type = std::getenv("NGRAPH_TF_USE_DYNAMIC") != nullptr
+                                ? "NGraphDynamicEncapsulate"
+                                : "NGraphEncapsulate";
+    Status status = NodeBuilder(ss.str(), node_type)
                         .Attr("ngraph_cluster", cluster_idx)
                         .Attr("_ngraph_backend", cluster_backend)
                         .Attr("Targuments", input_types)

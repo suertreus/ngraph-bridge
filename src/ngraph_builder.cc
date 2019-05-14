@@ -429,8 +429,13 @@ static Status TranslateBinaryOp(
   std::shared_ptr<ng::Node> ng_lhs, ng_rhs;
   TF_RETURN_IF_ERROR(GetInputNodes(ng_op_map, op, &ng_lhs, &ng_rhs));
 
-  std::tie(ng_lhs, ng_rhs) =
-      ng::builder::numpy_broadcast(std::make_pair(ng_lhs, ng_rhs));
+  // TODO(amprocte): For now if we have dynamic shape, we can't use the auto-
+  // broadcast builder. Just cross our fingers and hope it's not needed!
+  if (ng_lhs->get_output_partial_shape(0).is_static() &&
+      ng_rhs->get_output_partial_shape(0).is_static()) {
+    std::tie(ng_lhs, ng_rhs) =
+        ng::builder::numpy_broadcast(std::make_pair(ng_lhs, ng_rhs));
+  }
 
   SaveNgOp(ng_op_map, op->name(), create_binary_op(ng_lhs, ng_rhs));
 
@@ -4508,7 +4513,7 @@ const static std::map<
         {"ZerosLike", TranslateZerosLikeOp}};
 
 Status Builder::TranslateGraph(
-    const std::vector<TensorShape>& inputs,
+    const std::vector<TensorShape>& input_shapes,
     const std::vector<const Tensor*>& static_input_map,
     const Graph* input_graph, shared_ptr<ng::Function>& ng_function) {
   //
@@ -4578,8 +4583,21 @@ Status Builder::TranslateGraph(
     ng::element::Type ng_et;
     TF_RETURN_IF_ERROR(TFDataTypeToNGraphElementType(dtype, &ng_et));
 
-    ng::Shape ng_shape;
-    TF_RETURN_IF_ERROR(TFTensorShapeToNGraphShape(inputs[index], &ng_shape));
+    ng::PartialShape ng_shape;
+    if (input_shapes.size() != 0) {
+      TF_RETURN_IF_ERROR(
+          TFTensorShapeToNGraphPartialShape(input_shapes[index], &ng_shape));
+    } else {
+      TensorShape tf_shape;
+      // TODO(amprocte): Currently we are not attaching any information here,
+      // so this test will actually never succeed.
+      if (GetNodeAttr(parm->attrs(), "shape", &tf_shape) == Status::OK()) {
+        TF_RETURN_IF_ERROR(
+            TFTensorShapeToNGraphPartialShape(tf_shape, &ng_shape));
+      } else {
+        ng_shape = ng::PartialShape::dynamic();
+      }
+    }
 
     auto ng_param = make_shared<ng::op::Parameter>(ng_et, ng_shape);
     SaveNgOp(ng_op_map, parm->name(), ng_param);

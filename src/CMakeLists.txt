@@ -38,6 +38,7 @@ set(SRC
    ngraph_capture_variables.cc
    ngraph_cluster_manager.cc
    ngraph_deassign_clusters.cc
+   ngraph_dynamic_encapsulate_op.cc
    ngraph_encapsulate_clusters.cc
    ngraph_encapsulate_op.cc
    ngraph_freshness_tracker.cc
