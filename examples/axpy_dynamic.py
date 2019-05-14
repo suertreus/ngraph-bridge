@@ -59,8 +59,11 @@ with tf.Session(config=config) as sess:
                                                    x: np.ones(shape),
                                                    y: np.ones(shape)
                                                })
-            print("[", i, "] ", i)
-            print("Result: \n", result_axpy, " C: \n", result_c)
+            print("[", i, "]")
+            print("Result:")
+            print(result_axpy)
+            print("C = aX:")
+            print(result_c)
 
 train_writer.add_graph(tf.get_default_graph())
 tf.train.write_graph(
