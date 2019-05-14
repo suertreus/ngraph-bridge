@@ -23,3 +23,5 @@ bazel-testlogs
 build_cmake
 cxx_abi_option.bzl
 tf_configure
+
+Function_*ngraph*.json

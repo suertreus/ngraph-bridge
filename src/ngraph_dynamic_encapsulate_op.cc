@@ -49,7 +49,7 @@ namespace ng = ngraph;
 namespace tensorflow {
 
 // For each I/O tensor, cache TF's data ptr and nGraph's Tensor
-using NgFunctionIOCache =
+using NgInputTensorCache =
     std::vector<std::pair<void*, shared_ptr<ng::runtime::Tensor>>>;
 
 namespace ngraph_bridge {
@@ -73,14 +73,14 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
       : OpKernel(ctx),
         m_graph(OpRegistry::Global()),
         m_freshness_tracker(nullptr) {
-    my_instance_id = s_instance_count;
+    m_instance_id = s_instance_count;
     s_instance_count++;
 
     std::ostringstream oss;
-    oss << "DynamicEncapsulate_" << my_instance_id << ": " << name();
+    oss << "DynamicEncapsulate_" << m_instance_id << ": " << name();
     ngraph::Event event(oss.str(), name(), "");
 
-    NGRAPH_VLOG(1) << "NGraphDynamicEncapsulateOp: " << my_instance_id
+    NGRAPH_VLOG(1) << "NGraphDynamicEncapsulateOp: " << m_instance_id
                    << " Name: " << name();
 
     GraphDef* graph_def;
@@ -110,7 +110,6 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
       opts.allow_internal_ops = true;
       OP_REQUIRES_OK(ctx, ConvertGraphDefToGraph(opts, *graph_def, &m_graph));
     }
-    OP_REQUIRES_OK(ctx, ctx->GetAttr("ngraph_graph_id", &m_graph_id));
 
     // Set the backend type for the op
     OP_REQUIRES_OK(ctx,
@@ -127,7 +126,7 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
   //---------------------------------------------------------------------------
   ~NGraphDynamicEncapsulateOp() override {
     std::ostringstream oss;
-    oss << "Destroy Encapsulate_" << my_instance_id << ": " << name();
+    oss << "Destroy Encapsulate_" << m_instance_id << ": " << name();
     ngraph::Event event(oss.str(), name(), "");
     NGRAPH_VLOG(2) << "~NGraphEncapsulateOp::" << name();
 
@@ -278,16 +277,14 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
   // NOTE: This also writes data to the input tensors, if device is not CPU.
   Status AllocateTensorInput(
       OpKernelContext* ctx,
-      std::shared_ptr<ngraph::runtime::Executable>& ng_exec,
+      const std::shared_ptr<ngraph::runtime::Executable>& ng_exec,
       const std::vector<TensorShape>& input_shapes,
       vector<shared_ptr<ng::runtime::Tensor>>& ng_inputs) {
     // Allocate tensors for input arguments.
     ngraph::Event event_alloc_input("Input: maybe create", name(), "");
     std::vector<std::unique_ptr<ngraph::Event>> input_copy_events;
 
-    std::vector<std::pair<void*, std::shared_ptr<ng::runtime::Tensor>>>&
-        input_caches = m_ng_exec_input_cache;
-    input_caches.resize(input_shapes.size());
+    m_ng_input_cache.resize(input_shapes.size());
 
     for (int i = 0; i < input_shapes.size(); i++) {
       ng::Shape ng_shape(input_shapes[i].dims());
@@ -301,9 +298,9 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
       // At the first call of the ng_exec, both last_src_ptr and
       // last_ng_tensor shall point to null. Otherwise, they are retrived
       // from cache.
-      void* last_src_ptr = input_caches[i].first;
+      void* last_src_ptr = m_ng_input_cache[i].first;
       std::shared_ptr<ng::runtime::Tensor> last_ng_tensor =
-          input_caches[i].second;
+          m_ng_input_cache[i].second;
 
       void* current_src_ptr = (void*)DMAHelper::base(&ctx->input(i));
       std::shared_ptr<ng::runtime::Tensor> current_ng_tensor =
@@ -332,7 +329,7 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
           errors::Internal("Error in transferring tensor data to nGraph\n");
         }
       }
-      input_caches[i] = std::make_pair(current_src_ptr, current_ng_tensor);
+      m_ng_input_cache[i] = std::make_pair(current_src_ptr, current_ng_tensor);
       ng_inputs.push_back(current_ng_tensor);
     }
     // Now write the events back
@@ -345,8 +342,7 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
 
   Status AllocateNGTensorOutput(
       OpKernelContext* ctx,
-      std::shared_ptr<ngraph::runtime::Executable>& ng_exec,
-      std::vector<TensorShape>& input_shapes) {
+      const std::shared_ptr<ngraph::runtime::Executable>& ng_exec) {
     m_ng_output_tensors.resize(ng_exec->get_results().size());
     // ngraph executable returns get_results, using that to get the tensor shape
     // and element type.
@@ -404,7 +400,7 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
   //---------------------------------------------------------------------------
   void Compute(OpKernelContext* ctx) override {
     std::ostringstream oss;
-    oss << "Execute: Encapsulate_" << my_instance_id << ": " << name();
+    oss << "Execute: Encapsulate_" << m_instance_id << ": " << name();
     ngraph::Event event(oss.str(), name(), "");
 
     Timer compute_time;
@@ -472,7 +468,7 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
     // Allocate nG tensors for the output results.
     ngraph::Event event_ng_alloc_output("Output: maybe create nG", name(), "");
 
-    OP_REQUIRES_OK(ctx, AllocateNGTensorOutput(ctx, ng_exec, input_shapes));
+    OP_REQUIRES_OK(ctx, AllocateNGTensorOutput(ctx, ng_exec));
 
     event_ng_alloc_output.Stop();
 
@@ -582,7 +578,7 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
     NGRAPH_VLOG(4)
         << "NGraphEncapsulateOp::Compute done marking fresh for cluster "
         << m_ngraph_cluster;
-    NGRAPH_VLOG(1) << "NGRAPH_TF_TIMING_PROFILE: OP_ID: " << my_instance_id
+    NGRAPH_VLOG(1) << "NGRAPH_TF_TIMING_PROFILE: OP_ID: " << m_instance_id
                    << " Step_ID: " << ctx->step_id()
                    << " Cluster: " << ctx->op_kernel().name()
                    << " Time-Compute: " << compute_time.ElapsedInMS()
@@ -603,21 +599,6 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
   }  // end compute
 
  private:
-  // TF Graph for the cluster
-  Graph m_graph;
-  std::shared_ptr<ngraph::runtime::Executable> m_ng_exec;
-  std::shared_ptr<ngraph::Function> m_ng_function;
-  NgFunctionIOCache m_ng_exec_input_cache;
-  std::vector<std::shared_ptr<ng::runtime::Tensor>> m_ng_output_tensors;
-  // Freshness tracker maintains a set of ng::functions using a particular base
-  // pointer(for Tensor)
-  // A single instance of freshness_tracker is used across all
-  // nGraphEncapsulateOp and nGraphVariable op
-  NGraphFreshnessTracker* m_freshness_tracker;
-  int m_ngraph_cluster{-1};
-  int m_graph_id{-1};
-  std::mutex m_compute_lock;
-  string m_op_backend_name;
   std::shared_ptr<ng::runtime::Tensor> GetCurrentNgTensor(
       void* current_tf_ptr, void* last_tf_ptr,
       const std::shared_ptr<ng::runtime::Tensor>& last_ng_tensor,
@@ -633,10 +614,13 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
     // at the first call to the ng_exec, both current_dst_ptr (when the
     // output is a 0-sized tensor) and last_dst_ptr (uninitialized at the
     // first call) are nullptr
-    // A new tensor needs to be created for sure if no_ng_tensor_found
+    // A new tensor needs to be created for sure if no_ng_tensor_found.
+    // We'll also create one if shapes have changed.
     bool need_new_tensor_creation;
     need_new_tensor_creation =
-        no_ng_tensor_found || last_ng_tensor->get_shape() != ng_shape;
+        no_ng_tensor_found ||
+        last_ng_tensor->get_partial_shape().is_dynamic() ||
+        last_ng_tensor->get_shape() != ng_shape;
 
     // It is stale if a new tensor was created OR the tf tensor has changed OR
     // (tf tensor has not changed, but freshness tracker says its stale)
@@ -660,8 +644,44 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
     current_ng_tensor->set_stale(is_stale);
     return current_ng_tensor;
   }
+
+  // TF Graph for the cluster
+  Graph m_graph;
+
+  // We cache one executable, and one function. It might not be necessary to
+  // cache the function if we shift compilation earlier. Currently compilation
+  // is still triggered on first Compute() call.
+  std::shared_ptr<ngraph::runtime::Executable> m_ng_exec;
+  std::shared_ptr<ngraph::Function> m_ng_function;
+
+  // No longer caching per-executable.
+  NgInputTensorCache m_ng_input_cache;
+
+  // No longer caching per-executable, and we no longer need a separate vector
+  // of output tensors for each shape signature.
+  std::vector<std::shared_ptr<ng::runtime::Tensor>> m_ng_output_tensors;
+
+  // Freshness tracker maintains a set of ng::functions using a particular base
+  // pointer(for Tensor). A single instance of freshness_tracker is used across
+  // all NGraphEncapsulate and NGraphVariable nodes.
+  NGraphFreshnessTracker* m_freshness_tracker;
+
+  // Globally unique cluster identifier, used for fetching the TF graph from
+  // the NGraphClusterManager.
+  int m_ngraph_cluster{-1};
+
+  // Lock to serialize Compute() calls.
+  std::mutex m_compute_lock;
+
+  // The name of the backend we are running on. Used to fetch backend object
+  // from BackendManager.
+  string m_op_backend_name;
+
+  // Globally unique serial number for NGraphDynamicEncapsulate nodes.
+  int m_instance_id{0};
+
+  // Counter for serial numbers.
   static int s_instance_count;
-  int my_instance_id{0};
 };
 
 int NGraphDynamicEncapsulateOp::s_instance_count = 0;
