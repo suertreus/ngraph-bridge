@@ -64,6 +64,9 @@ REGISTER_OP("NGraphDynamicEncapsulate")
     .SetIsStateful()
     .Doc("nGraph Encapsulation Op. For use by the nGraph JIT only.");
 
+// TODO: privatize member functions of NGraphDynamicEncapsulateOp, where
+// possible.
+
 class NGraphDynamicEncapsulateOp : public OpKernel {
  public:
   //---------------------------------------------------------------------------
@@ -253,13 +256,13 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
             "tf_function_error_" + ctx->op_kernel().name() + ".json",
             ng_function);
         return errors::Internal("Caught exception while compiling op_backend: ",
-                                exp.what(), "\n");
+                                exp.what());
       } catch (...) {
         BackendManager::UnlockBackend(m_op_backend_name);
         NgraphSerialize(
             "tf_function_error_" + ctx->op_kernel().name() + ".json",
             ng_function);
-        return errors::Internal("Error in compiling op_backend\n");
+        return errors::Internal("Error in compiling op_backend");
       }
       BackendManager::UnlockBackend(m_op_backend_name);
       event_compile.Stop();
@@ -324,9 +327,10 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
 
         } catch (const std::exception& exp) {
           errors::Internal(
-              "Caught exception while transferring tensor data to nGraph\n");
+              "Caught exception while transferring tensor data to nGraph: ",
+              exp.what());
         } catch (...) {
-          errors::Internal("Error in transferring tensor data to nGraph\n");
+          errors::Internal("Error in transferring tensor data to nGraph");
         }
       }
       m_ng_input_cache[i] = std::make_pair(current_src_ptr, current_ng_tensor);
@@ -491,7 +495,7 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
         OP_REQUIRES(ctx, false,
                     errors::Internal(
                         "Caught exception while executing nGraph computation: ",
-                        exp.what(), "\n"));
+                        exp.what()));
       } catch (...) {
         auto ng_function = m_ng_function;
         BackendManager::UnlockBackend(m_op_backend_name);
@@ -500,7 +504,7 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
             ng_function);
         OP_REQUIRES(
             ctx, false,
-            errors::Internal("Error in executing the nGraph computation\n"));
+            errors::Internal("Error in executing the nGraph computation"));
       }
       BackendManager::UnlockBackend(m_op_backend_name);
     }
@@ -557,11 +561,10 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
           ctx, false,
           errors::Internal(
               "Caught exception while transferring tensor data to host: ",
-              exp.what(), "\n"));
+              exp.what()));
     } catch (...) {
-      OP_REQUIRES(
-          ctx, false,
-          errors::Internal("Error in transferring tensor data to host\n"));
+      OP_REQUIRES(ctx, false, errors::Internal(
+                                  "Error in transferring tensor data to host"));
     }
     event_copy_output.Stop();
 
