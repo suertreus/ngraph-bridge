@@ -1,0 +1,15 @@
+{
+    "model_name": "NewNetwork",
+    "reference_backend": "CPU",
+    "testing_backend": "NGRAPH_CPU",
+    "pb_graph_location": "/localdisk/sarkars/workspace1/ngraph_bridge_tf/dir_6_may14_r013/ngraph-bridge/diagnostics/model_test/precapture_0002.pbtxt",
+    "input_tensor_name": ["import/import/Placeholder:0"],
+    "output_tensor_name":["import/import/softmax/quant/QuantizeAndDequantizeV2:0"],
+    "random_val_range": [255],
+    "l1_norm_threshold": 0.01,
+    "l2_norm_threshold": 0.01,
+    "inf_norm_threshold": 0.01,
+    "input_dimension" : [[28,28,1]],
+    "batch_size": 4
+}
+
