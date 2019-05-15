@@ -616,7 +616,9 @@ Status MarkForClustering(Graph* graph,
       set_attributes_map["Sum"] = SetStaticInputs({1});
       set_attributes_map["TopKV2"] = SetStaticInputs({1});
       set_attributes_map["Tile"] = SetStaticInputs({1});
-      set_attributes_map["Transpose"] = SetStaticInputs({1});
+      if (std::getenv("NGRAPH_TF_USE_DYNAMIC") != nullptr) {
+        set_attributes_map["Transpose"] = SetStaticInputs({1});
+      }
 
       initialized = true;
     }

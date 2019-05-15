@@ -31,12 +31,12 @@ graph_location = "/tmp/" + getpass.getuser() + "/tensorboard-logs/test"
 print('Saving graph to: %s' % graph_location)
 train_writer = tf.summary.FileWriter(graph_location)
 
-# Define the data
+# Define the inputs
 x = tf.placeholder(tf.float32, shape=None, name='x')
 y = tf.placeholder(tf.float32, shape=None, name='y')
 perm = tf.placeholder(tf.int32, shape=(None), name='perm')
 
-x_trans = tf.transpose(x+y,perm)
+x_plus_y_trans = tf.transpose(x + y, perm)
 
 # Configure the session
 config = tf.ConfigProto(
@@ -46,26 +46,29 @@ config = tf.ConfigProto(
 
 # Create session and run
 with tf.Session(config=config) as sess:
-    for (shape,perms) in [((2, 2), [[0, 1], [1, 0]]),
-                          ((2, 3), [[1, 0], [0, 1]]),
-                          ((4, 4), [[0, 1], [1, 0]])]:
+    for (shape,
+         perms) in [((2, 2), [[0, 1], [1, 0]]), ((2, 3), [[1, 0], [0, 1]]),
+                    ((4, 4), [[0, 1], [1, 0]]), ((4, 5), [[0, 1], [1, 0]]),
+                    ((2, 3, 2), [[0, 1, 2], [0, 2, 1], [1, 2, 0]])]:
         print("Shape:", shape)
         print("====================")
         for p in perms:
             n_elems = np.prod(shape)
-            x_data = np.linspace(start=1, stop=n_elems, num=n_elems)
+            x_data = np.linspace(start=0, stop=n_elems - 1, num=n_elems)
             x_data.shape = shape
+
             y_data = np.zeros(shape)
 
-            result_x_trans = sess.run(x_trans,
-                                      feed_dict={
-                                          x: x_data,
-                                          y: y_data,
-                                          perm: p
-                                      })
+            result_x_plus_y_trans = sess.run(
+                x_plus_y_trans, feed_dict={
+                    x: x_data,
+                    y: y_data,
+                    perm: p
+                })
             print("Permutation:", p)
             print("Result:")
-            print(result_x_trans)
+            print(result_x_plus_y_trans)
+            print()
 
 train_writer.add_graph(tf.get_default_graph())
 tf.train.write_graph(

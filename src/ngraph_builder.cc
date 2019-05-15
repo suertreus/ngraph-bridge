@@ -195,6 +195,11 @@ static Status GetStaticNodeTensor(
   if (node->type_string() == "_Arg") {
     int arg_index;
     TF_RETURN_IF_ERROR(GetNodeAttr(node->attrs(), "index", &arg_index));
+    if (arg_index >= static_input_map.size()) {
+      return errors::Internal(
+          "GetStaticNodeTensor called on _Arg but input tensor is missing from "
+          "static input map");
+    }
     const Tensor* source_tensor = static_input_map[arg_index];
     if (source_tensor == nullptr) {
       return errors::Internal(
@@ -4221,47 +4226,65 @@ static Status TranslateTopKV2Op(
 static Status TranslateTransposeOp(
     const Node* op, const std::vector<const Tensor*>& static_input_map,
     Builder::OpMap& ng_op_map) {
-  shared_ptr<ng::Node> ng_input, ng_permutation_op;
-  TF_RETURN_IF_ERROR(
-      GetInputNodes(ng_op_map, op, &ng_input, &ng_permutation_op));
+  if (std::getenv("NGRAPH_TF_USE_DYNAMIC") != nullptr) {
+    shared_ptr<ng::Node> ng_input, ng_permutation_op;
+    TF_RETURN_IF_ERROR(
+        GetInputNodes(ng_op_map, op, &ng_input, &ng_permutation_op));
 
-  std::vector<int64> permutation;
-  TF_RETURN_IF_ERROR(
-      GetStaticInputVector(op, 1, static_input_map, &permutation));
-
-  // Check to make sure that the permutation requested for transpose
-  // is valid for example:
-  // - it should not have duplicates,
-  // - it should have all the dimensions.
-
-  auto ng_input_rank = ng_input->get_shape().size();
-  vector<bool> count(ng_input_rank, false);
-  for (auto p : permutation) {
-    if (0 <= p && p < ng_input_rank) {
-      count[p] = true;
+    if (ng_permutation_op->get_output_element_type(0) != ng::element::i64) {
+      ng_permutation_op = ConstructNgNode<ngraph::op::Convert>(
+          op->name(), ng_permutation_op, ng::element::i64);
     }
-  }
-  for (int i = 0; i < ng_input_rank; i++) {
-    if (!count[i]) {
-      return errors::InvalidArgument(i, " is missing from {",
-                                     ng::join(permutation), "}.");
+
+    auto ng_out = ConstructNgNode<ngraph::op::Transpose>(op->name(), ng_input,
+                                                         ng_permutation_op);
+
+    SaveNgOp(ng_op_map, op->name(), ng_out);
+
+    return Status::OK();
+  } else {
+    shared_ptr<ng::Node> ng_input, ng_permutation_op;
+    TF_RETURN_IF_ERROR(
+        GetInputNodes(ng_op_map, op, &ng_input, &ng_permutation_op));
+
+    std::vector<int64> permutation;
+    TF_RETURN_IF_ERROR(
+        GetStaticInputVector(op, 1, static_input_map, &permutation));
+
+    // Check to make sure that the permutation requested for transpose
+    // is valid for example:
+    // - it should not have duplicates,
+    // - it should have all the dimensions.
+
+    auto ng_input_rank = ng_input->get_shape().size();
+    vector<bool> count(ng_input_rank, false);
+    for (auto p : permutation) {
+      if (0 <= p && p < ng_input_rank) {
+        count[p] = true;
+      }
     }
+    for (int i = 0; i < ng_input_rank; i++) {
+      if (!count[i]) {
+        return errors::InvalidArgument(i, " is missing from {",
+                                       ng::join(permutation), "}.");
+      }
+    }
+
+    ng::AxisVector ng_axis_order;
+    ng_axis_order.reserve(permutation.size());
+
+    NGRAPH_VLOG(3) << ng::join(permutation);
+
+    for (auto i : permutation) {
+      ng_axis_order.push_back(i);
+    }
+
+    NGRAPH_VLOG(3) << ng::join(ng_axis_order);
+
+    SaveNgOp(ng_op_map, op->name(),
+             ng::builder::numpy_transpose(ng_input, ng_axis_order));
+    return Status::OK();
   }
-
-  ng::AxisVector ng_axis_order;
-  ng_axis_order.reserve(permutation.size());
-
-  NGRAPH_VLOG(3) << ng::join(permutation);
-
-  for (auto i : permutation) {
-    ng_axis_order.push_back(i);
-  }
-
-  NGRAPH_VLOG(3) << ng::join(ng_axis_order);
-
-  SaveNgOp(ng_op_map, op->name(),
-           ng::builder::numpy_transpose(ng_input, ng_axis_order));
-  return Status::OK();
 }
 
 static Status TranslateUnpackOp(
