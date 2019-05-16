@@ -95,8 +95,8 @@ if (TF_INSTALLED_VER[0] == TF_NEEDED_VER[0]) and \
    ((TF_INSTALLED_VER[2].split('-'))[0] == (TF_NEEDED_VER[2].split('-'))[0]):
     libpath = os.path.dirname(__file__)
     full_lib_path = os.path.join(libpath, 'libngraph_bridge.' + ext)
-    #ngraph_bridge_lib = ctypes.cdll.LoadLibrary(full_lib_path)
     _ = load_library.load_op_library(full_lib_path)
+    ngraph_bridge_lib = ctypes.cdll.LoadLibrary(full_lib_path)
 
 else:
     raise ValueError(
@@ -110,22 +110,21 @@ def requested():
         attr_value_pb2.AttrValue(b=True)
     })
 
-if False:
-    ngraph_bridge_lib.ngraph_is_enabled.restype = ctypes.c_bool
-    ngraph_bridge_lib.ngraph_list_backends.restype = ctypes.c_bool
-    ngraph_bridge_lib.ngraph_set_backend.argtypes = [ctypes.c_char_p]
-    ngraph_bridge_lib.ngraph_set_backend.restype = ctypes.c_bool
-    ngraph_bridge_lib.ngraph_is_supported_backend.argtypes = [ctypes.c_char_p]
-    ngraph_bridge_lib.ngraph_is_supported_backend.restype = ctypes.c_bool
-    ngraph_bridge_lib.ngraph_get_currently_set_backend_name.restype = ctypes.c_bool
-    ngraph_bridge_lib.ngraph_is_logging_placement.restype = ctypes.c_bool
-    ngraph_bridge_lib.ngraph_tf_version.restype = ctypes.c_char_p
-    ngraph_bridge_lib.ngraph_lib_version.restype = ctypes.c_char_p
-    ngraph_bridge_lib.ngraph_tf_cxx11_abi_flag.restype = ctypes.c_int
-    ngraph_bridge_lib.ngraph_tf_is_grappler_enabled.restype = ctypes.c_bool
-    ngraph_bridge_lib.ngraph_tf_are_variables_enabled.restype = ctypes.c_bool
-    ngraph_bridge_lib.ngraph_set_disabled_ops.argtypes = [ctypes.c_char_p]
-    ngraph_bridge_lib.ngraph_get_disabled_ops.restype = ctypes.c_char_p
+ngraph_bridge_lib.ngraph_is_enabled.restype = ctypes.c_bool
+ngraph_bridge_lib.ngraph_list_backends.restype = ctypes.c_bool
+ngraph_bridge_lib.ngraph_set_backend.argtypes = [ctypes.c_char_p]
+ngraph_bridge_lib.ngraph_set_backend.restype = ctypes.c_bool
+ngraph_bridge_lib.ngraph_is_supported_backend.argtypes = [ctypes.c_char_p]
+ngraph_bridge_lib.ngraph_is_supported_backend.restype = ctypes.c_bool
+ngraph_bridge_lib.ngraph_get_currently_set_backend_name.restype = ctypes.c_bool
+ngraph_bridge_lib.ngraph_is_logging_placement.restype = ctypes.c_bool
+ngraph_bridge_lib.ngraph_tf_version.restype = ctypes.c_char_p
+ngraph_bridge_lib.ngraph_lib_version.restype = ctypes.c_char_p
+ngraph_bridge_lib.ngraph_tf_cxx11_abi_flag.restype = ctypes.c_int
+ngraph_bridge_lib.ngraph_tf_is_grappler_enabled.restype = ctypes.c_bool
+ngraph_bridge_lib.ngraph_tf_are_variables_enabled.restype = ctypes.c_bool
+ngraph_bridge_lib.ngraph_set_disabled_ops.argtypes = [ctypes.c_char_p]
+ngraph_bridge_lib.ngraph_get_disabled_ops.restype = ctypes.c_char_p
 
 try:
     importlib.import_module('plaidml.settings')
@@ -137,27 +136,26 @@ except ImportError:
 
 
 def enable():
-    #ngraph_bridge_lib.ngraph_enable()
-    pass
+    ngraph_bridge_lib.ngraph_enable()
+
 
 
 def disable():
-    #ngraph_bridge_lib.ngraph_disable()
-    pass
+    ngraph_bridge_lib.ngraph_disable()
 
 
 def is_enabled():
-    return True#ngraph_bridge_lib.ngraph_is_enabled()
+    return ngraph_bridge_lib.ngraph_is_enabled()
 
 
 def backends_len():
-    return 1#return ngraph_bridge_lib.ngraph_backends_len()
+    return ngraph_bridge_lib.ngraph_backends_len()
 
 
 def list_backends():
     len_backends = backends_len()
     result = (ctypes.c_char_p * len_backends)()
-    if False: #not ngraph_bridge_lib.ngraph_list_backends(result, len_backends):
+    if ngraph_bridge_lib.ngraph_list_backends(result, len_backends):
         raise Exception("Expected " + str(len_backends) +
                         " backends, but got some  other number of backends")
     list_result = list(result)
@@ -169,46 +167,43 @@ def list_backends():
 
 
 def set_backend(backend):
-    if False: #not ngraph_bridge_lib.ngraph_set_backend(backend.encode("utf-8")):
+    if ngraph_bridge_lib.ngraph_set_backend(backend.encode("utf-8")):
         raise Exception("Backend " + backend + " unavailable.")
 
 
 def is_supported_backend(backend):
-    #return ngraph_bridge_lib.ngraph_is_supported_backend(
-    #    backend.encode("utf-8"))
-    return True
+    return ngraph_bridge_lib.ngraph_is_supported_backend(
+        backend.encode("utf-8"))
 
 
 def get_currently_set_backend_name():
     result = (ctypes.c_char_p * 1)()
-    if False: #not ngraph_bridge_lib.ngraph_get_currently_set_backend_name(result):
+    if ngraph_bridge_lib.ngraph_get_currently_set_backend_name(result):
         raise Exception("Cannot get currently set backend")
     list_result = list(result)
     return list_result[0].decode("utf-8")
 
 
 def start_logging_placement():
-    #ngraph_bridge_lib.ngraph_start_logging_placement()
-    pass
+    ngraph_bridge_lib.ngraph_start_logging_placement()
 
 
 def stop_logging_placement():
-    #ngraph_bridge_lib.ngraph_stop_logging_placement()
-    pass
+    ngraph_bridge_lib.ngraph_stop_logging_placement()
 
 
 def is_logging_placement():
-    return True
+    return ngraph_bridge_lib.ngraph_is_logging_placement()
 
 def cxx11_abi_flag():
-    return 1
+    return ngraph_bridge_lib.ngraph_tf_cxx11_abi_flag()
 
 def is_grappler_enabled():
-    return True
+    return ngraph_bridge_lib.ngraph_tf_is_grappler_enabled()
 
 def update_config(config):
     #updating session config if grappler is enabled
-    if True: #(ngraph_bridge_lib.ngraph_tf_is_grappler_enabled()):
+    if (ngraph_bridge_lib.ngraph_tf_is_grappler_enabled()):
         rewrite_options = rewriter_config_pb2.RewriterConfig(
             meta_optimizer_iterations=rewriter_config_pb2.RewriterConfig.ONE,
             min_graph_nodes=-1,
