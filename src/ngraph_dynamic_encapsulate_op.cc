@@ -131,7 +131,7 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
     std::ostringstream oss;
     oss << "Destroy Encapsulate_" << m_instance_id << ": " << name();
     ngraph::Event event(oss.str(), name(), "");
-    NGRAPH_VLOG(2) << "~NGraphEncapsulateOp::" << name();
+    NGRAPH_VLOG(2) << "~NGraphDynamicEncapsulateOp::" << name();
 
     // If the kernel goes away, we must de-register the function
     // from the freshness tracker.
@@ -144,7 +144,7 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
     }
 
     // Release the backend
-    NGRAPH_VLOG(2) << "~NGraphEncapsulateOp():: ReleaseBackend";
+    NGRAPH_VLOG(2) << "~NGraphDynamicEncapsulateOp():: ReleaseBackend";
     BackendManager::ReleaseBackend(m_op_backend_name);
     event.Stop();
     ngraph::Event::write_trace(event);
@@ -579,7 +579,7 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
         copy_output_tensors_to_host.ElapsedInMS();
 
     NGRAPH_VLOG(4)
-        << "NGraphEncapsulateOp::Compute done marking fresh for cluster "
+        << "NGraphDynamicEncapsulateOp::Compute done marking fresh for cluster "
         << m_ngraph_cluster;
     NGRAPH_VLOG(1) << "NGRAPH_TF_TIMING_PROFILE: OP_ID: " << m_instance_id
                    << " Step_ID: " << ctx->step_id()
@@ -666,7 +666,7 @@ class NGraphDynamicEncapsulateOp : public OpKernel {
 
   // Freshness tracker maintains a set of ng::functions using a particular base
   // pointer(for Tensor). A single instance of freshness_tracker is used across
-  // all NGraphEncapsulate and NGraphVariable nodes.
+  // all NGraphEncapsulate, NGraphDynamicEncapsulate, and NGraphVariable nodes.
   NGraphFreshnessTracker* m_freshness_tracker;
 
   // Globally unique cluster identifier, used for fetching the TF graph from
