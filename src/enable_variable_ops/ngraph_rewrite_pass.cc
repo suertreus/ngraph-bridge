@@ -28,6 +28,7 @@
 #include "ngraph_enter_in_catalog.h"
 #include "ngraph_log.h"
 #include "ngraph_mark_for_clustering.h"
+#include "ngraph_remove_copy_froms.h"
 #include "ngraph_replace_variable_modifiers.h"
 #include "ngraph_rewrite_for_tracking.h"
 #include "ngraph_utils.h"
@@ -300,6 +301,13 @@ class NGraphEncapsulationPass : public NGraphRewritePass {
     if (DumpCatalogedGraphs()) {
       DumpGraphs(options, idx, "cataloged",
                  "Graph with Variables Inputs Entered in Catalog");
+    }
+
+    // Remove CopyFrom then.
+    TF_RETURN_IF_ERROR(RemoveCopyFroms(options.graph->get(), idx));
+    if (DumpCatalogedGraphs()) {
+      DumpGraphs(options, idx, "RemoveCopyFroms",
+                 "Graph with CopyFroms Removed");
     }
 
     return Status::OK();
