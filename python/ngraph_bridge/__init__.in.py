@@ -34,6 +34,8 @@ from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.framework import ops
 
 from tensorflow.core.protobuf import rewriter_config_pb2
+from tensorflow.python.framework import load_library
+
 
 import ctypes
 
@@ -92,8 +94,10 @@ if (TF_INSTALLED_VER[0] == TF_NEEDED_VER[0]) and \
    (TF_INSTALLED_VER[1] == TF_NEEDED_VER[1]) and \
    ((TF_INSTALLED_VER[2].split('-'))[0] == (TF_NEEDED_VER[2].split('-'))[0]):
     libpath = os.path.dirname(__file__)
-    ngraph_bridge_lib = ctypes.cdll.LoadLibrary(
-        os.path.join(libpath, 'libngraph_bridge.' + ext))
+    full_lib_path = os.path.join(libpath, 'libngraph_bridge.' + ext)
+    #ngraph_bridge_lib = ctypes.cdll.LoadLibrary(full_lib_path)
+    _ = load_library.load_op_library(full_lib_path)
+
 else:
     raise ValueError(
         "Error: Installed TensorFlow version {0}\nnGraph bridge built with: {1}"
@@ -106,22 +110,22 @@ def requested():
         attr_value_pb2.AttrValue(b=True)
     })
 
-
-ngraph_bridge_lib.ngraph_is_enabled.restype = ctypes.c_bool
-ngraph_bridge_lib.ngraph_list_backends.restype = ctypes.c_bool
-ngraph_bridge_lib.ngraph_set_backend.argtypes = [ctypes.c_char_p]
-ngraph_bridge_lib.ngraph_set_backend.restype = ctypes.c_bool
-ngraph_bridge_lib.ngraph_is_supported_backend.argtypes = [ctypes.c_char_p]
-ngraph_bridge_lib.ngraph_is_supported_backend.restype = ctypes.c_bool
-ngraph_bridge_lib.ngraph_get_currently_set_backend_name.restype = ctypes.c_bool
-ngraph_bridge_lib.ngraph_is_logging_placement.restype = ctypes.c_bool
-ngraph_bridge_lib.ngraph_tf_version.restype = ctypes.c_char_p
-ngraph_bridge_lib.ngraph_lib_version.restype = ctypes.c_char_p
-ngraph_bridge_lib.ngraph_tf_cxx11_abi_flag.restype = ctypes.c_int
-ngraph_bridge_lib.ngraph_tf_is_grappler_enabled.restype = ctypes.c_bool
-ngraph_bridge_lib.ngraph_tf_are_variables_enabled.restype = ctypes.c_bool
-ngraph_bridge_lib.ngraph_set_disabled_ops.argtypes = [ctypes.c_char_p]
-ngraph_bridge_lib.ngraph_get_disabled_ops.restype = ctypes.c_char_p
+if False:
+    ngraph_bridge_lib.ngraph_is_enabled.restype = ctypes.c_bool
+    ngraph_bridge_lib.ngraph_list_backends.restype = ctypes.c_bool
+    ngraph_bridge_lib.ngraph_set_backend.argtypes = [ctypes.c_char_p]
+    ngraph_bridge_lib.ngraph_set_backend.restype = ctypes.c_bool
+    ngraph_bridge_lib.ngraph_is_supported_backend.argtypes = [ctypes.c_char_p]
+    ngraph_bridge_lib.ngraph_is_supported_backend.restype = ctypes.c_bool
+    ngraph_bridge_lib.ngraph_get_currently_set_backend_name.restype = ctypes.c_bool
+    ngraph_bridge_lib.ngraph_is_logging_placement.restype = ctypes.c_bool
+    ngraph_bridge_lib.ngraph_tf_version.restype = ctypes.c_char_p
+    ngraph_bridge_lib.ngraph_lib_version.restype = ctypes.c_char_p
+    ngraph_bridge_lib.ngraph_tf_cxx11_abi_flag.restype = ctypes.c_int
+    ngraph_bridge_lib.ngraph_tf_is_grappler_enabled.restype = ctypes.c_bool
+    ngraph_bridge_lib.ngraph_tf_are_variables_enabled.restype = ctypes.c_bool
+    ngraph_bridge_lib.ngraph_set_disabled_ops.argtypes = [ctypes.c_char_p]
+    ngraph_bridge_lib.ngraph_get_disabled_ops.restype = ctypes.c_char_p
 
 try:
     importlib.import_module('plaidml.settings')
@@ -133,25 +137,27 @@ except ImportError:
 
 
 def enable():
-    ngraph_bridge_lib.ngraph_enable()
+    #ngraph_bridge_lib.ngraph_enable()
+    pass
 
 
 def disable():
-    ngraph_bridge_lib.ngraph_disable()
+    #ngraph_bridge_lib.ngraph_disable()
+    pass
 
 
 def is_enabled():
-    return ngraph_bridge_lib.ngraph_is_enabled()
+    return True#ngraph_bridge_lib.ngraph_is_enabled()
 
 
 def backends_len():
-    return ngraph_bridge_lib.ngraph_backends_len()
+    return 1#return ngraph_bridge_lib.ngraph_backends_len()
 
 
 def list_backends():
     len_backends = backends_len()
     result = (ctypes.c_char_p * len_backends)()
-    if not ngraph_bridge_lib.ngraph_list_backends(result, len_backends):
+    if False: #not ngraph_bridge_lib.ngraph_list_backends(result, len_backends):
         raise Exception("Expected " + str(len_backends) +
                         " backends, but got some  other number of backends")
     list_result = list(result)
@@ -163,43 +169,46 @@ def list_backends():
 
 
 def set_backend(backend):
-    if not ngraph_bridge_lib.ngraph_set_backend(backend.encode("utf-8")):
+    if False: #not ngraph_bridge_lib.ngraph_set_backend(backend.encode("utf-8")):
         raise Exception("Backend " + backend + " unavailable.")
 
 
 def is_supported_backend(backend):
-    return ngraph_bridge_lib.ngraph_is_supported_backend(
-        backend.encode("utf-8"))
+    #return ngraph_bridge_lib.ngraph_is_supported_backend(
+    #    backend.encode("utf-8"))
+    return True
 
 
 def get_currently_set_backend_name():
     result = (ctypes.c_char_p * 1)()
-    if not ngraph_bridge_lib.ngraph_get_currently_set_backend_name(result):
+    if False: #not ngraph_bridge_lib.ngraph_get_currently_set_backend_name(result):
         raise Exception("Cannot get currently set backend")
     list_result = list(result)
     return list_result[0].decode("utf-8")
 
 
 def start_logging_placement():
-    ngraph_bridge_lib.ngraph_start_logging_placement()
+    #ngraph_bridge_lib.ngraph_start_logging_placement()
+    pass
 
 
 def stop_logging_placement():
-    ngraph_bridge_lib.ngraph_stop_logging_placement()
+    #ngraph_bridge_lib.ngraph_stop_logging_placement()
+    pass
 
 
 def is_logging_placement():
-    return ngraph_bridge_lib.ngraph_is_logging_placement()
+    return True
 
 def cxx11_abi_flag():
-    return ngraph_bridge_lib.ngraph_tf_cxx11_abi_flag()
+    return 1
 
 def is_grappler_enabled():
-    return ngraph_bridge_lib.ngraph_tf_is_grappler_enabled()
+    return True
 
 def update_config(config):
     #updating session config if grappler is enabled
-    if(ngraph_bridge_lib.ngraph_tf_is_grappler_enabled()):
+    if True: #(ngraph_bridge_lib.ngraph_tf_is_grappler_enabled()):
         rewrite_options = rewriter_config_pb2.RewriterConfig(
             meta_optimizer_iterations=rewriter_config_pb2.RewriterConfig.ONE,
             min_graph_nodes=-1,
@@ -219,12 +228,4 @@ def set_disabled_ops(unsupported_ops):
 def get_disabled_ops():
     return ngraph_bridge_lib.ngraph_get_disabled_ops()
 
-__version__ = \
-  "nGraph bridge version: " + str(ngraph_bridge_lib.ngraph_tf_version()) + "\n" + \
-  "nGraph version used for this build: " + str(ngraph_bridge_lib.ngraph_lib_version()) + "\n" + \
-  "TensorFlow version used for this build: " + TF_GIT_VERSION_BUILT_WITH + "\n" \
-  "CXX11_ABI flag used for this build: " + str(ngraph_bridge_lib.ngraph_tf_cxx11_abi_flag()) + "\n" \
-  "nGraph bridge built with Grappler: " + str(ngraph_bridge_lib.ngraph_tf_is_grappler_enabled()) + "\n" \
-  "nGraph bridge built with Variables and Optimizers Enablement: " \
-      + str(ngraph_bridge_lib.ngraph_tf_are_variables_enabled())
-
+__version__ = "HELLO"
