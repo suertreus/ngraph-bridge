@@ -750,6 +750,12 @@ class NGraphEncapsulateOp : public OpKernel {
     int time_create_or_lookup_tensors = create_or_lookup_tensors.ElapsedInMS();
 
     // Execute the nGraph function.
+
+    if(m_graph_id==2){
+      ng_outputs[0]=ng_inputs[0];
+    }
+
+
     ngraph::Event event_execute_function("Execute nGraph", name(), "");
     Timer execute_function;
     {

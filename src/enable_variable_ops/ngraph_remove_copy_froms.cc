@@ -26,6 +26,37 @@ Status RemoveCopyFroms(Graph* graph, int graph_id) {
     return Status::OK();
   }
 
+  // Remove NGraphAssign
+  // NGAssign has no other outputs
+  vector<Node*> nodes_to_be_removed;
+  for(auto node: graph->nodes()){
+      if(node->type_string()=="NGraphAssign"){
+          Node* merge_node;
+          TF_RETURN_IF_ERROR(node->input_node(1, &merge_node));
+
+          cout<<"Found merge_node of type "<<merge_node->type_string()<<endl;
+
+          for(auto out_edge : node->out_edges()){
+            // if control edges, add to merge node
+            if(out_edge->IsControlEdge()){
+              graph->AddEdge(merge_node, out_edge->src_output(), out_edge->dst(),
+                   out_edge->dst_input());
+              graph->RemoveEdge(out_edge);
+            }
+            else{
+              // other outputs we dont handle yet
+              return errors::Internal("Got NGraphAssign with an output that is not control edge");
+            }
+          }
+          nodes_to_be_removed.push_back(node);
+      }
+  }
+
+
+  for(auto node: nodes_to_be_removed){
+      graph->RemoveNode(node);
+  }
+
   return Status::OK();
 }
 
