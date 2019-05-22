@@ -24,7 +24,7 @@ def main():
     '''
 
     # Component versions
-    ngraph_version = "aprocter/dynamic-api-dev"
+    ngraph_version = "master"
     tf_version = "v1.13.1"
 
     # Command line parser options
