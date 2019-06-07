@@ -493,13 +493,27 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
   // Pass 6.5:
   string input_node_type = ngraph_tf_is_grappler_enabled() ? "Placeholder" : "_Arg";
   cout << input_node_type << "\n";
+  // TODO: add an "if(aot_requested)""
   for (auto node : graph->op_nodes()) {
     // Assume that shapes are provided only for placeholders
     // Note sometimes, maybe the placeholder itself has the shape. we can AOT in that case
     if (node->type_string() == input_node_type) {
       cout << node->name() << " " << node->type_string() << " " << "XXX\n";
       cout << node->attrs().SummarizeNode() << "\n";
-      cout << node->attrs().Find("shape") << "\n";
+      auto shape = node->attrs().Find("shape");
+      if (shape != nullptr){
+        tensorflow::TensorShapeProto tensor_shape_proto = shape->shape();
+        for (uint shape_idx = 0; shape_idx < tensor_shape_proto.dim_size(); shape_idx++) {
+          auto num_elems_in_this_dim = tensor_shape_proto.dim(shape_idx).size();
+          if (num_elems_in_this_dim == -1) {
+            // get value from input shape hints
+          } else {
+            // check if num_elems_in_this_dim matches anything present in input shape hints
+          }
+        }
+        //cout << "HELLO: " << shape->shape() << "\n";
+       }
+
       for (auto at : node->attrs()){
         cout << at.first << "\n";
       }
