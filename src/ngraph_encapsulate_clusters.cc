@@ -492,6 +492,8 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
 
   // Pass 6.5:
   string input_node_type = ngraph_tf_is_grappler_enabled() ? "Placeholder" : "_Arg";
+  // In case of grappler, we have Placeholder, which might contain shape info, so it is possible we can aot without any provided shapes
+  // in normal pass its args. unless shapes are provided there is no chance of reading shapes from args.
   cout << input_node_type << "\n";
   // TODO: add an "if(aot_requested)""
   for (auto node : graph->op_nodes()) {
