@@ -491,22 +491,35 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
   }
 
   // Pass 6.5:
+  std::map<std::string, set<vector<int>>> node_shapes_hints;
+  node_shapes_hints["inp1"] = {{2}};
+  node_shapes_hints["inp2"] = {{2,3}};
+  node_shapes_hints["inp3"] = {{2,3},{4,3}};
+  node_shapes_hints["inp4"] = {{5}}; // incorrect
   string input_node_type = ngraph_tf_is_grappler_enabled() ? "Placeholder" : "_Arg";
   // In case of grappler, we have Placeholder, which might contain shape info, so it is possible we can aot without any provided shapes
   // in normal pass its args. unless shapes are provided there is no chance of reading shapes from args.
   cout << input_node_type << "\n";
   // TODO: add an "if(aot_requested)""
+  bool can_aot = true;
+
+
+  std::map<std::string, set<vector<int>>> node_shapes_for_compilation;
+  std::set<std::string> inputs_found;
   for (auto node : graph->op_nodes()) {
     // Assume that shapes are provided only for placeholders
     // Note sometimes, maybe the placeholder itself has the shape. we can AOT in that case
     if (node->type_string() == input_node_type) {
+      inputs_found.insert(node->name());
       cout << node->name() << " " << node->type_string() << " " << "XXX\n";
       cout << node->attrs().SummarizeNode() << "\n";
-      auto shape = node->attrs().Find("shape");
-      if (shape != nullptr){
-        tensorflow::TensorShapeProto tensor_shape_proto = shape->shape();
+      auto shape_field = node->attrs().Find("shape");
+      if (shape_field != nullptr){
+        // If a shape has been found, match with shape_hints
+        tensorflow::TensorShapeProto tensor_shape_proto = shape_field->shape();
         for (uint shape_idx = 0; shape_idx < tensor_shape_proto.dim_size(); shape_idx++) {
           auto num_elems_in_this_dim = tensor_shape_proto.dim(shape_idx).size();
+          cout << "num_elems_in_this_dim: " << num_elems_in_this_dim << "\n";
           if (num_elems_in_this_dim == -1) {
             // get value from input shape hints
           } else {
@@ -514,13 +527,30 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
           }
         }
         //cout << "HELLO: " << shape->shape() << "\n";
-       }
+      } else {
+        // Shape was not found, so use shape hints
+        //concrete_shapes = ?
+      }
 
       for (auto at : node->attrs()){
         cout << at.first << "\n";
       }
       cout << "\n";
     }
+  }
+
+  // Did we manage to concretize all input shapes?
+  for (auto itr : inputs_found) {
+    if (node_shapes_for_compilation.find(itr) == node_shapes_for_compilation.end()){
+      can_aot = false;
+      break;
+    }
+  }
+
+  if (can_aot) {
+    // do something
+  } else {
+    // in strict mode, fail fatally
   }
 
   // Pass 7: Insert to function library
