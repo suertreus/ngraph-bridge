@@ -492,6 +492,8 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
 
   // Pass 6.5:
   string input_node_type = ngraph_tf_is_grappler_enabled() ? "Placeholder" : "_Arg";
+  // In case of grappler, we have Placeholder, which might contain shape info, so it is possible we can aot without any provided shapes
+  // in normal pass its args. unless shapes are provided there is no chance of reading shapes from args.
   cout << input_node_type << "\n";
   for (auto node : graph->op_nodes()) {
     // Assume that shapes are provided only for placeholders
@@ -499,7 +501,9 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
     if (node->type_string() == input_node_type) {
       cout << node->name() << " " << node->type_string() << " " << "XXX\n";
       cout << node->attrs().SummarizeNode() << "\n";
-      cout << node->attrs().Find("shape") << "\n";
+      if (node->attrs().Find("shape") != nullptr){
+        // Do something
+      }
       for (auto at : node->attrs()){
         cout << at.first << "\n";
       }
