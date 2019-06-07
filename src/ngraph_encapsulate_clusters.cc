@@ -44,6 +44,7 @@
 #include "ngraph_mark_for_clustering.h"
 #include "ngraph_utils.h"
 #include "tf_graph_writer.h"
+#include "version.h"
 
 using namespace std;
 
@@ -71,6 +72,9 @@ static void AddInput(NodeDef* dst, StringPiece src_name, int src_slot) {
 }
 // ...end code copied and pasted (and modified) from graph.cc
 
+// TODO: write a unit test where the graph results in only 1 encapsulate
+// TODO: write a unit test where the graph results in >1 encapsulate.. in that case we have to call TranslateGraph on all the encaps individually with aapropriate inp shapes, whcih we have to infer
+// std::set<std::vector<TensorShape>> input_shapes
 Status EncapsulateClusters(Graph* graph, int graph_id,
                            FunctionDefLibrary* fdeflib) {
   // A map from cluster indices to the expected device name for nodes
@@ -484,6 +488,23 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
     }
 
     graph->RemoveNode(node);
+  }
+
+  // Pass 6.5:
+  string input_node_type = ngraph_tf_is_grappler_enabled() ? "Placeholder" : "_Arg";
+  cout << input_node_type << "\n";
+  for (auto node : graph->op_nodes()) {
+    // Assume that shapes are provided only for placeholders
+    // Note sometimes, maybe the placeholder itself has the shape. we can AOT in that case
+    if (node->type_string() == input_node_type) {
+      cout << node->name() << " " << node->type_string() << " " << "XXX\n";
+      cout << node->attrs().SummarizeNode() << "\n";
+      cout << node->attrs().Find("shape") << "\n";
+      for (auto at : node->attrs()){
+        cout << at.first << "\n";
+      }
+      cout << "\n";
+    }
   }
 
   // Pass 7: Insert to function library
