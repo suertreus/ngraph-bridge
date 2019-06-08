@@ -517,6 +517,21 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
     return std::all_of(shape.begin(), shape.end(),
                        [](int i) { return i >= 0; });
   };
+  auto shape_is_compatible = [](vector<int> sh1, vector<int> sh2){
+    bool compatible;
+    if (sh1.size() != sh2.size()) { // different ranks
+      compatible = false;
+    } else {
+      for (int i = 0; i < sh1.size(); i++){
+        if ((sh1[i] != sh2[i]) && !(sh1[i] == -1 || sh2[i] == -1)) {
+          // if they are unequal, then atleast one of them has to be -1 to be compatible
+          compatible = false;
+          break;
+        }
+      }
+    }
+    return compatible;
+  };
 
   std::map<std::string, set<vector<int>>> node_shapes_for_compilation;
   std::set<std::string> inputs_found;
@@ -530,7 +545,7 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
            << "XXX\n";
       cout << node->attrs().SummarizeNode() << "\n";
       auto shape_field = node->attrs().Find("shape");
-      set<vector<int>> sh;
+      set<vector<int>> final_shapes;
       auto shape_hints_for_node = get_shapes(node);
       if (shape_field != nullptr) {
         // Get shape from the node
@@ -545,9 +560,11 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
 
         // If a shape has been found in the input node, match with shape_hints
         // if they exist
-
         if (shape_hints_for_node.size() > 0) {
           // TODO:
+          uint rank = shape_from_node.size();
+          // use shape_is_compatible()
+         
         } else {
           // No shape hints found. Ensure that there is no "-1" in
           // shape_from_node
@@ -560,8 +577,8 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
         if (shape_hints_for_node.size() > 0) {
           // Copy out the concrete hints only
           std::copy_if(shape_hints_for_node.begin(), shape_hints_for_node.end(),
-                       std::inserter(sh, sh.end()), is_concrete);
-          if (sh.size() == 0) {
+                       std::inserter(final_shapes, final_shapes.end()), is_concrete);
+          if (final_shapes.size() == 0) {
             // No shape info in node, also none of the hints were concrete
             can_aot = false;
           }
@@ -572,7 +589,7 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
         }
       }
       if (can_aot) {
-        node_shapes_for_compilation[node->name()] = sh;
+        node_shapes_for_compilation[node->name()] = final_shapes;
       } else {
         break;
       }
