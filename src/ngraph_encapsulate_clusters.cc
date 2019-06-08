@@ -73,7 +73,9 @@ static void AddInput(NodeDef* dst, StringPiece src_name, int src_slot) {
 // ...end code copied and pasted (and modified) from graph.cc
 
 // TODO: write a unit test where the graph results in only 1 encapsulate
-// TODO: write a unit test where the graph results in >1 encapsulate.. in that case we have to call TranslateGraph on all the encaps individually with aapropriate inp shapes, whcih we have to infer
+// TODO: write a unit test where the graph results in >1 encapsulate.. in that
+// case we have to call TranslateGraph on all the encaps individually with
+// aapropriate inp shapes, whcih we have to infer
 // std::set<std::vector<TensorShape>> input_shapes
 Status EncapsulateClusters(Graph* graph, int graph_id,
                            FunctionDefLibrary* fdeflib) {
@@ -493,61 +495,84 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
   // Pass 6.5:
   std::map<std::string, set<vector<int>>> node_shapes_hints;
   node_shapes_hints["inp1"] = {{2}};
-  node_shapes_hints["inp2"] = {{2,3}};
-  node_shapes_hints["inp3"] = {{2,3},{4,3}};
-  node_shapes_hints["inp4"] = {{5}}; // incorrect
-  string input_node_type = ngraph_tf_is_grappler_enabled() ? "Placeholder" : "_Arg";
-  // In case of grappler, we have Placeholder, which might contain shape info, so it is possible we can aot without any provided shapes
-  // in normal pass its args. unless shapes are provided there is no chance of reading shapes from args.
+  node_shapes_hints["inp2"] = {{2, 3}};
+  node_shapes_hints["inp3"] = {{2, 3}, {4, 3}};
+  node_shapes_hints["inp4"] = {{5}};  // incorrect
+  string input_node_type =
+      ngraph_tf_is_grappler_enabled() ? "Placeholder" : "_Arg";
+  // In case of grappler, we have Placeholder, which might contain shape info,
+  // so it is possible we can aot without any provided shapes
+  // in normal pass its args. unless shapes are provided there is no chance of
+  // reading shapes from args.
   cout << input_node_type << "\n";
   // TODO: add an "if(aot_requested)""
   bool can_aot = true;
 
-  auto get_shapes = [&node_shapes_hints](Node* node){
+  auto get_shapes = [&node_shapes_hints](Node* node) {
     auto find_itr = node_shapes_hints.find(node->name());
-    return find_itr == node_shapes_hints.end() ? std::set<vector<int>>{} : find_itr->second;
+    return find_itr == node_shapes_hints.end() ? std::set<vector<int>>{}
+                                               : find_itr->second;
+  };
+  auto is_concrete = [](std::vector<int> shape) {
+    return std::all_of(shape.begin(), shape.end(), [](int i) { return i >= 0; });
   };
 
   std::map<std::string, set<vector<int>>> node_shapes_for_compilation;
   std::set<std::string> inputs_found;
   for (auto node : graph->op_nodes()) {
     // Assume that shapes are provided only for placeholders
-    // Note sometimes, maybe the placeholder itself has the shape. we can AOT in that case
+    // Note sometimes, maybe the placeholder itself has the shape. we can AOT in
+    // that case
     if (node->type_string() == input_node_type) {
       inputs_found.insert(node->name());
-      cout << node->name() << " " << node->type_string() << " " << "XXX\n";
+      cout << node->name() << " " << node->type_string() << " "
+           << "XXX\n";
       cout << node->attrs().SummarizeNode() << "\n";
       auto shape_field = node->attrs().Find("shape");
-      if (shape_field != nullptr){
+      if (shape_field != nullptr) {
         // Get shape from the node
         tensorflow::TensorShapeProto tensor_shape_proto = shape_field->shape();
         vector<int> shape_from_node(tensor_shape_proto.dim_size());
-        for (uint shape_idx = 0; shape_idx < tensor_shape_proto.dim_size(); shape_idx++) {
+        for (uint shape_idx = 0; shape_idx < tensor_shape_proto.dim_size();
+             shape_idx++) {
           auto num_elems_in_this_dim = tensor_shape_proto.dim(shape_idx).size();
           shape_from_node.push_back(num_elems_in_this_dim);
           // -1 means not specified
         }
 
-        // If a shape has been found, match with shape_hints
+        // If a shape has been found in the input node, match with shape_hints
+        // if they exist
         auto shape_hints_for_node = get_shapes(node);
-        // TODO: compare shape_hints_for_node and shape_from_node and check for inconsistencies etc
-
+        if (shape_hints_for_node.size() > 0) {
+          // TODO:
+        } else {
+          // No shape hints found. Ensure that there is no "-1" in
+          // shape_from_node
+          can_aot = is_concrete(shape_from_node);
+        }
       } else {
         // Shape was not found, so use shape hints
         auto sh = get_shapes(node);
-        if (sh.size() > 0){
-          node_shapes_for_compilation[node->name()] = get_shapes(node);
+        if (sh.size() > 0) {
+          // TODO: remove assert and return TF_STATUS
+          assert(is_concrete(sh));
+          node_shapes_for_compilation[node->name()] = sh;
         } else {
-          // There was an input, which had no shape information, also no information for that node was present in the shape hints
+          // There was an input, which had no shape information, also no
+          // information for that node was present in the shape hints
           can_aot = false;
         }
+      }
+      if (!can_aot) {
+        break;
       }
     }
   }
 
   // Did we manage to concretize all input shapes?
   for (auto itr : inputs_found) {
-    if (node_shapes_for_compilation.find(itr) == node_shapes_for_compilation.end()){
+    if (node_shapes_for_compilation.find(itr) ==
+        node_shapes_for_compilation.end()) {
       can_aot = false;
       break;
     }
