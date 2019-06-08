@@ -514,7 +514,8 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
                                                : find_itr->second;
   };
   auto is_concrete = [](std::vector<int> shape) {
-    return std::all_of(shape.begin(), shape.end(), [](int i) { return i >= 0; });
+    return std::all_of(shape.begin(), shape.end(),
+                       [](int i) { return i >= 0; });
   };
 
   std::map<std::string, set<vector<int>>> node_shapes_for_compilation;
@@ -529,6 +530,8 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
            << "XXX\n";
       cout << node->attrs().SummarizeNode() << "\n";
       auto shape_field = node->attrs().Find("shape");
+      set<vector<int>> sh;
+      auto shape_hints_for_node = get_shapes(node);
       if (shape_field != nullptr) {
         // Get shape from the node
         tensorflow::TensorShapeProto tensor_shape_proto = shape_field->shape();
@@ -542,28 +545,35 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
 
         // If a shape has been found in the input node, match with shape_hints
         // if they exist
-        auto shape_hints_for_node = get_shapes(node);
+
         if (shape_hints_for_node.size() > 0) {
           // TODO:
         } else {
           // No shape hints found. Ensure that there is no "-1" in
           // shape_from_node
-          can_aot = is_concrete(shape_from_node);
+          if (!is_concrete(shape_from_node)) {
+            can_aot = false;
+          }
         }
       } else {
         // Shape was not found, so use shape hints
-        auto sh = get_shapes(node);
-        if (sh.size() > 0) {
-          // TODO: remove assert and return TF_STATUS
-          assert(is_concrete(sh));
-          node_shapes_for_compilation[node->name()] = sh;
+        if (shape_hints_for_node.size() > 0) {
+          // Copy out the concrete hints only
+          std::copy_if(shape_hints_for_node.begin(), shape_hints_for_node.end(),
+                       std::inserter(sh, sh.end()), is_concrete);
+          if (sh.size() == 0) {
+            // No shape info in node, also none of the hints were concrete
+            can_aot = false;
+          }
         } else {
           // There was an input, which had no shape information, also no
           // information for that node was present in the shape hints
           can_aot = false;
         }
       }
-      if (!can_aot) {
+      if (can_aot) {
+        node_shapes_for_compilation[node->name()] = sh;
+      } else {
         break;
       }
     }
