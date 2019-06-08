@@ -503,6 +503,10 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
   // TODO: add an "if(aot_requested)""
   bool can_aot = true;
 
+  auto get_shapes = [&node_shapes_hints](Node* node){
+    auto find_itr = node_shapes_hints.find(node->name());
+    return find_itr == node_shapes_hints.end() ? std::set<vector<int>>{} : find_itr->second;
+  };
 
   std::map<std::string, set<vector<int>>> node_shapes_for_compilation;
   std::set<std::string> inputs_found;
@@ -515,27 +519,29 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
       cout << node->attrs().SummarizeNode() << "\n";
       auto shape_field = node->attrs().Find("shape");
       if (shape_field != nullptr){
-        // If a shape has been found, match with shape_hints
+        // Get shape from the node
         tensorflow::TensorShapeProto tensor_shape_proto = shape_field->shape();
+        vector<int> shape_from_node(tensor_shape_proto.dim_size());
         for (uint shape_idx = 0; shape_idx < tensor_shape_proto.dim_size(); shape_idx++) {
           auto num_elems_in_this_dim = tensor_shape_proto.dim(shape_idx).size();
-          cout << "num_elems_in_this_dim: " << num_elems_in_this_dim << "\n";
-          if (num_elems_in_this_dim == -1) {
-            // get value from input shape hints
-          } else {
-            // check if num_elems_in_this_dim matches anything present in input shape hints
-          }
+          shape_from_node.push_back(num_elems_in_this_dim);
+          // -1 means not specified
         }
-        //cout << "HELLO: " << shape->shape() << "\n";
+
+        // If a shape has been found, match with shape_hints
+        auto shape_hints_for_node = get_shapes(node);
+        // TODO: compare shape_hints_for_node and shape_from_node and check for inconsistencies etc
+
       } else {
         // Shape was not found, so use shape hints
-        //concrete_shapes = ?
+        auto sh = get_shapes(node);
+        if (sh.size() > 0){
+          node_shapes_for_compilation[node->name()] = get_shapes(node);
+        } else {
+          // There was an input, which had no shape information, also no information for that node was present in the shape hints
+          can_aot = false;
+        }
       }
-
-      for (auto at : node->attrs()){
-        cout << at.first << "\n";
-      }
-      cout << "\n";
     }
   }
 
