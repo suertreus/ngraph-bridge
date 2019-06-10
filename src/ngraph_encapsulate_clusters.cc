@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -517,20 +518,30 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
     return std::all_of(shape.begin(), shape.end(),
                        [](int i) { return i >= 0; });
   };
-  auto shape_is_compatible = [](vector<int> sh1, vector<int> sh2){
-    bool compatible;
-    if (sh1.size() != sh2.size()) { // different ranks
-      compatible = false;
+
+  auto concretize_if_compatible = [](vector<int> shape_base,
+                                     vector<int> shape_hint) {
+    tuple<bool, vector<int>> concrete;
+    uint base_rank = shape_base.size();
+    if (base_rank != shape_hint.size()) {  // different ranks
+      concrete = make_pair(false, std::vector<int>{});
     } else {
-      for (int i = 0; i < sh1.size(); i++){
-        if ((sh1[i] != sh2[i]) && !(sh1[i] == -1 || sh2[i] == -1)) {
-          // if they are unequal, then atleast one of them has to be -1 to be compatible
-          compatible = false;
-          break;
+      vector<int> possible_shape(base_rank);
+      for (int i = 0; i < base_rank; i++) {
+        if (shape_base[i] == shape_hint[i]) {
+          possible_shape[i] = shape_base[i];
+        } else {
+          if (shape_base[i] == -1 && shape_hint[i] > -1) {
+            possible_shape[i] = shape_hint[i];
+          } else {
+            concrete = make_pair(false, std::vector<int>{});
+            break;
+          }
         }
       }
+      concrete = make_pair(true, possible_shape);
     }
-    return compatible;
+    return concrete;
   };
 
   std::map<std::string, set<vector<int>>> node_shapes_for_compilation;
@@ -563,8 +574,16 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
         if (shape_hints_for_node.size() > 0) {
           // TODO:
           uint rank = shape_from_node.size();
-          // use shape_is_compatible()
-         
+          std::set<vector<int>> concrete_shapes_set;
+          for (auto possible_hint : shape_hints_for_node) {
+            bool compatible;
+            vector<int> concrete_shape;
+            std::tie(compatible, concrete_shape) =
+                concretize_if_compatible(shape_from_node, possible_hint);
+            if (compatible) {
+              concrete_shapes_set.insert(concrete_shape);
+            }
+          }
         } else {
           // No shape hints found. Ensure that there is no "-1" in
           // shape_from_node
@@ -577,7 +596,8 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
         if (shape_hints_for_node.size() > 0) {
           // Copy out the concrete hints only
           std::copy_if(shape_hints_for_node.begin(), shape_hints_for_node.end(),
-                       std::inserter(final_shapes, final_shapes.end()), is_concrete);
+                       std::inserter(final_shapes, final_shapes.end()),
+                       is_concrete);
           if (final_shapes.size() == 0) {
             // No shape info in node, also none of the hints were concrete
             can_aot = false;
