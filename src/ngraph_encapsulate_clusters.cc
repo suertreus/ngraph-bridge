@@ -493,7 +493,27 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
     graph->RemoveNode(node);
   }
 
-  // Pass 6.5:
+  // Pass 7: Insert to function library
+  // Note: We loop over cluster_indices_for_this_graph and not all the
+  // contents of ClusterManager
+  for (const auto& cluster_idx : cluster_indices_for_this_graph) {
+    // The transformation happening inside this loop is:
+    // graphdef --> graph --> functiondef
+    // NGraphClusterManager::GetClusterGraph(cluster_idx)-->subgraph-->fdef
+    // TODO: whats the right flib to use in subgraph's constructor?
+    Graph subgraph(graph->flib_def());
+    // TODO: When this works, NGraphClusterManager can go away
+    TF_RETURN_IF_ERROR(ConvertGraphDefToGraph(
+        GraphConstructorOptions(),
+        *(NGraphClusterManager::GetClusterGraph(cluster_idx)), &subgraph));
+    FunctionDef* fdef = fdeflib->add_function();
+    // TODO: if func lib has func with same name etc?
+    TF_RETURN_IF_ERROR(GraphToFunctionDef(
+        subgraph, strings::StrCat("ngraph_cluster_", to_string(cluster_idx)),
+        fdef));
+  }
+
+    // Pass 8:
   std::map<std::string, set<vector<int>>> node_shapes_hints;
   node_shapes_hints["inp1"] = {{2}};
   node_shapes_hints["inp2"] = {{2, 3}};
@@ -628,6 +648,27 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
 
   if (can_aot) {
     /*
+    string flib_key = "ngraph_cluster_" + to_string(m_ngraph_cluster);
+      // Read graphdef from function library
+      const FunctionLibraryDefinition flib =
+          *ctx->function_library()->GetFunctionLibraryDefinition();
+      const FunctionDef* fdef = flib.Find(flib_key);
+      OP_REQUIRES(
+          ctx, fdef != nullptr,
+          errors::Internal("Did not find graphdef for encapsulate ", flib_key,
+                           " in NGraphClusterManager or function library"));
+      // TODO: how to convert from functiondef to graphdef. Anything easier?
+      std::unique_ptr<FunctionBody> fnbody;
+      const auto get_func_sig = [&flib](const string& op, const OpDef** sig) {
+        return flib.LookUpOpDef(op, sig);
+      };
+      FunctionDefToBodyHelper(*fdef, {}, &flib, get_func_sig, &fnbody);
+      CopyGraph(*fnbody->graph, &m_graph);*/
+
+    
+
+      
+    /*
     // do something
     std::shared_ptr<ngraph::Function> ng_function;
     // TODO populate static_input_map, input_shapes, m_graph
@@ -646,27 +687,7 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
     // in strict mode, fail fatally
   }
 
-  // Pass 7: Insert to function library
-  // Note: We loop over cluster_indices_for_this_graph and not all the
-  // contents of ClusterManager
-  for (const auto& cluster_idx : cluster_indices_for_this_graph) {
-    // The transformation happening inside this loop is:
-    // graphdef --> graph --> functiondef
-    // NGraphClusterManager::GetClusterGraph(cluster_idx)-->subgraph-->fdef
-    // TODO: whats the right flib to use in subgraph's constructor?
-    Graph subgraph(graph->flib_def());
-    // TODO: When this works, NGraphClusterManager can go away
-    TF_RETURN_IF_ERROR(ConvertGraphDefToGraph(
-        GraphConstructorOptions(),
-        *(NGraphClusterManager::GetClusterGraph(cluster_idx)), &subgraph));
-    FunctionDef* fdef = fdeflib->add_function();
-    // TODO: if func lib has func with same name etc?
-    TF_RETURN_IF_ERROR(GraphToFunctionDef(
-        subgraph, strings::StrCat("ngraph_cluster_", to_string(cluster_idx)),
-        fdef));
-  }
-
-  // Pass 8 (optional, only run if environment variable
+  // Pass 9 (optional, only run if environment variable
   // NGRAPH_TF_DUMP_CLUSTERS is set): validate the graph def, and
   // make sure we can construct a graph from it.
   if (std::getenv("NGRAPH_TF_DUMP_CLUSTERS")) {

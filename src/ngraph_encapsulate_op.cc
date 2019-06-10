@@ -26,6 +26,8 @@
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/graph/graph.h"
 #include "tensorflow/core/graph/graph_constructor.h"
+#include "tensorflow/core/framework/tensor_shape.pb.h"
+
 
 #include "ngraph_backend_manager.h"
 #include "ngraph_builder.h"
@@ -60,6 +62,13 @@ using NgFunctionIOCache = std::unordered_map<
 
 namespace ngraph_bridge {
 
+Status MyUnknownShape(shape_inference::InferenceContext* c) {
+  for (int i = 0; i < c->num_outputs(); ++i) {
+    c->set_output(i, c->MakeShape({4,5}));
+  }
+  return Status::OK();
+}
+
 REGISTER_OP("NGraphEncapsulate")
     .Input("args: Targuments")
     .Attr("Targuments: list(type) >= 0")
@@ -69,6 +78,7 @@ REGISTER_OP("NGraphEncapsulate")
     .Attr("ngraph_graph_id: int")
     .Attr("ngraph_backend: string")
     .SetIsStateful()
+    .SetShapeFn(MyUnknownShape)
     .Doc("nGraph Encapsulation Op. For use by the nGraph JIT only.");
 
 class NGraphEncapsulateOp : public OpKernel {

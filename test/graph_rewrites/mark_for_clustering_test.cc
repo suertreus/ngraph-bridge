@@ -170,6 +170,84 @@ TEST(MarkForClustering, ShapeTest) {
   }
 //}
 }
+
+
+TEST(MarkForClustering, ShapeTestNGENC) {
+  MetaGraphDef meta_graph;
+
+
+// TODO use graphdefbuilder instead of graph->graphdef
+ Graph g(OpRegistry::Global());
+ Tensor t_input_0(DT_FLOAT, TensorShape{2, 4});
+
+  Node* node1;
+  ASSERT_OK(NodeBuilder("node1", "Const")
+                .Attr("dtype", DT_FLOAT)
+                .Attr("value", t_input_0)
+                .Finalize(&g, &node1));
+
+  std::vector<NodeBuilder::NodeOut> inputs;
+  inputs.push_back(
+          NodeBuilder::NodeOut(node1, 0));
+  Node* node2;
+  ASSERT_OK(NodeBuilder("node2", "NGraphEncapsulate")
+                .Attr("ngraph_cluster", 1)
+                .Attr("ngraph_backend", "CPU")
+                .Input(inputs)
+                .Attr("Targuments", {DT_FLOAT})
+                .Attr("Tresults", {DT_FLOAT})
+                .Attr("ngraph_graph_id", 0)
+                .Finalize(&g, &node2));
+
+  // Add edges from SRC to node1 and node2
+  // Add edge from node3 to SINK
+  // The graph is disconnected without these edges
+  Node* source = g.source_node();
+  Node* sink = g.sink_node();
+  g.AddEdge(source, Graph::kControlSlot, node1, Graph::kControlSlot);
+  g.AddEdge(node2, Graph::kControlSlot, sink, Graph::kControlSlot);
+  GraphDef gdef;
+  g.ToGraphDef(&gdef);
+
+  *meta_graph.mutable_graph_def() = gdef;
+  CollectionDef collection;
+  collection.mutable_node_list()->add_value("node2");
+  (*meta_graph.mutable_collection_def())["train_op"] = collection;
+
+  grappler::ItemConfig cfg;
+  std::unique_ptr<grappler::GrapplerItem> item =
+      GrapplerItemFromMetaGraphDef("0", meta_graph, cfg);
+
+  //grappler::GrapplerItem item;
+  grappler::GraphProperties properties(*item);
+  Status s = properties.InferStatically(true);
+
+  for (const auto& node_name : vector<string>{"node1", "node2"}) {
+    cout << node_name << "\n";
+    auto inp_props = properties.GetInputProperties(node_name);
+    cout << inp_props.size() << "\n";
+    auto out_props = properties.GetOutputProperties(node_name);
+    cout << out_props.size() << "\n";
+
+    for (int ii = 0; ii < inp_props.size(); ii++){
+      const OpInfo::TensorProperties& prop_1 = inp_props[ii];
+      auto sh = prop_1.shape();
+      for (int i = 0; i < sh.dim_size(); i++){
+        cout << sh.dim(i).size() << " -- ";
+      }
+      cout << "\n";
+    }
+    
+    for (int ii = 0; ii < out_props.size(); ii++){
+      const OpInfo::TensorProperties& prop_1 = out_props[ii];
+      auto sh = prop_1.shape();
+      for (int i = 0; i < sh.dim_size(); i++){
+        cout << sh.dim(i).size() << " -- ";
+      }
+      cout << "\n";
+    }
+  }
+}
 }
 }
 }
