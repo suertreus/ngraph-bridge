@@ -16,7 +16,6 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
-#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -38,6 +37,7 @@
 
 #include "ngraph_api.h"
 #include "ngraph_assign_clusters.h"
+#include "ngraph_builder.h"
 #include "ngraph_cluster_manager.h"
 #include "ngraph_encapsulate_clusters.h"
 #include "ngraph_log.h"
@@ -574,14 +574,13 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
         if (shape_hints_for_node.size() > 0) {
           // TODO:
           uint rank = shape_from_node.size();
-          std::set<vector<int>> concrete_shapes_set;
           for (auto possible_hint : shape_hints_for_node) {
             bool compatible;
             vector<int> concrete_shape;
             std::tie(compatible, concrete_shape) =
                 concretize_if_compatible(shape_from_node, possible_hint);
             if (compatible) {
-              concrete_shapes_set.insert(concrete_shape);
+              final_shapes.insert(concrete_shape);
             }
           }
         } else {
@@ -589,6 +588,8 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
           // shape_from_node
           if (!is_concrete(shape_from_node)) {
             can_aot = false;
+          } else {
+            final_shapes = {shape_from_node};
           }
         }
       } else {
@@ -598,23 +599,23 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
           std::copy_if(shape_hints_for_node.begin(), shape_hints_for_node.end(),
                        std::inserter(final_shapes, final_shapes.end()),
                        is_concrete);
-          if (final_shapes.size() == 0) {
-            // No shape info in node, also none of the hints were concrete
-            can_aot = false;
-          }
         } else {
           // There was an input, which had no shape information, also no
           // information for that node was present in the shape hints
           can_aot = false;
         }
       }
+      can_aot = can_aot && (final_shapes.size() != 0);
       if (can_aot) {
         node_shapes_for_compilation[node->name()] = final_shapes;
       } else {
+        // TODO: necessarily break? Maybe some things can be AOT, others maybe
+        // not
+        can_aot = false;
         break;
       }
     }
-  }
+  } // End of for loop that goes through all nodes
 
   // Did we manage to concretize all input shapes?
   for (auto itr : inputs_found) {
@@ -626,7 +627,21 @@ Status EncapsulateClusters(Graph* graph, int graph_id,
   }
 
   if (can_aot) {
+    /*
     // do something
+    std::shared_ptr<ngraph::Function> ng_function;
+    // TODO populate static_input_map, input_shapes, m_graph
+    std::vector<const Tensor*>& static_input_map;
+    std::vector<TensorShape>& input_shapes;
+    Graph m_graph;
+
+    // TODO: compute signature
+
+    TF_RETURN_IF_ERROR(Builder::TranslateGraph(input_shapes, static_input_map,
+                                                 &m_graph, ng_function));
+    ng_function->set_friendly_name(name());
+    // TODO: serialize and attach to ngencapsulate. _ngfunction_<signature>
+    */
   } else {
     // in strict mode, fail fatally
   }
