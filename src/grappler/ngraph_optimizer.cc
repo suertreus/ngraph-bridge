@@ -76,6 +76,18 @@ Status NgraphOptimizer::shape_hints_parser(const string& raw_shape_hint) {
     }
     shape_hints[node_name] = shape_hints_set;
   }
+  // TODO remove this debug print later
+  // Parsing looks ok
+  for (auto itr : shape_hints){
+    cout << itr.first << "\n";
+    for (auto itr1 : itr.second){
+      for (auto itr2 : itr1){
+        cout << itr2 << ",";
+      }
+      cout << "\n";
+    }
+    cout << "=====\n";
+  }
   return Status::OK();
 }
 
@@ -86,8 +98,8 @@ Status NgraphOptimizer::Init(
   } else {
     NGRAPH_VLOG(3) << "NGTF_OPTIMIZER: config is not null ";
     const auto params = config->parameter_map();
-    if (params.count("shape_hints")) {
-      TF_RETURN_IF_ERROR(shape_hints_parser(params.at("shape_hints").s()));
+    if (params.count("_shape_hints")) {
+      TF_RETURN_IF_ERROR(shape_hints_parser(params.at("_shape_hints").s()));
     }
   }
   return Status::OK();
@@ -100,11 +112,68 @@ Status NgraphOptimizer::Optimize(tensorflow::grappler::Cluster* cluster,
   NGRAPH_VLOG(5) << "NGTF_OPTIMIZER: grappler item id " << item.id;
 
 
-  MetaGraphDef meta_graph;
-  *meta_graph.mutable_graph_def() = item.graph;
-  grappler::ItemConfig cfg;
-  std::unique_ptr<grappler::GrapplerItem> item =
-      GrapplerItemFromMetaGraphDef("0", meta_graph, cfg);
+  //MetaGraphDef meta_graph;
+  //*meta_graph.mutable_graph_def() = item.graph;
+  std::unique_ptr<grappler::GrapplerItem> gi{new grappler::GrapplerItem};
+  GraphDef g_copy;
+  g_copy.CopyFrom(item.graph);
+  cout << g_copy.node_size() << "ccccccc\n";
+  gi->WithGraph(std::move(g_copy));
+
+  cout << g_copy.node_size() << "ccccccc\n";
+  cout << item.graph.node_size() << "ccccccc\n";
+
+
+  grappler::GraphProperties properties(*gi);
+  Status s = properties.InferStatically(true);
+  GraphDef output_graph_def;
+  cout << "HERE1\n";
+  Status s1 = properties.AnnotateOutputShapes(&output_graph_def);
+  if (s != Status::OK()){
+    cout << "TODO: oops\n";
+  }
+  cout << "HERE2\n";
+
+  // TODO: this for loop is not entered. node_size==0
+  for (int ii = 0; ii < output_graph_def.node_size(); ii++){
+    cout << "cvcvvcvcvvcvcvc\n";
+    string ss("_output_shapes");
+    auto attr_map = output_graph_def.node(ii).attr();
+    auto shape_proto = attr_map[ss].shape();
+    for (int jj = 0; jj < shape_proto.dim_size(); jj++){
+      cout << shape_proto.dim(jj).size() << ",";
+    }
+    cout << "\n";
+    // _output_shapes
+  }
+
+  // TODO: Not producing right results
+  for (const auto& node_name : vector<string>{"A", "B", "Add", "C", "Mul"}) {
+    cout << node_name << "\n";
+    auto inp_props = properties.GetInputProperties(node_name);
+    cout << inp_props.size() << "\n";
+    auto out_props = properties.GetOutputProperties(node_name);
+    cout << out_props.size() << "\n";
+
+    for (int ii = 0; ii < inp_props.size(); ii++){
+      const OpInfo::TensorProperties& prop_1 = inp_props[ii];
+      auto sh = prop_1.shape();
+      for (int i = 0; i < sh.dim_size(); i++){
+        cout << sh.dim(i).size() << " -- ";
+      }
+      cout << "\n";
+    }
+
+    for (int ii = 0; ii < out_props.size(); ii++){
+      const OpInfo::TensorProperties& prop_1 = out_props[ii];
+      auto sh = prop_1.shape();
+      for (int i = 0; i < sh.dim_size(); i++){
+        cout << sh.dim(i).size() << " -- ";
+      }
+      cout << "\n";
+    }
+  }
+
 
   // Convert the GraphDef to Graph
   GraphConstructorOptions opts;

@@ -22,6 +22,12 @@
 #include "tensorflow/core/graph/node_builder.h"
 #include "tf_graph_writer.h"
 
+#include "tensorflow/cc/client/client_session.h"
+#include "tensorflow/cc/ops/standard_ops.h"
+#include "tensorflow/core/grappler/grappler_item.h"
+#include "tensorflow/core/grappler/optimizers/meta_optimizer.h"
+
+
 using namespace std;
 namespace ng = ngraph;
 
@@ -81,6 +87,56 @@ TEST(MarkForClustering, SimpleTest) {
     ASSERT_OK(GetNodeBackend(node, &backend));
     ASSERT_EQ(backend, expected_backend);
   }
+}
+
+
+// TODO move test to different file
+TEST(MarkForClustering, ShapeHints) {
+  // Create Graph
+  Scope root = Scope::NewRootScope();
+  auto A = ops::Const(root.WithOpName("A"), {3.f, 2.f});
+  auto B = ops::Const(root.WithOpName("B"), {3.f, 2.f});
+  auto Add = ops::Add(root.WithOpName("Add"), A, B);
+  auto C = ops::Const(root.WithOpName("C"), {3.f, 2.f});
+  auto Mul = ops::Mul(root.WithOpName("Mul"), Add, C);
+
+  Graph graph(OpRegistry::Global());
+  TF_CHECK_OK(root.ToGraph(&graph));
+
+  // set device specification
+  for (auto node : graph.op_nodes()) {
+    node->set_requested_device("CPU");
+  }
+
+  // Create GraphDef and Grappler
+  grappler::GrapplerItem item;
+  graph.ToGraphDef(&item.graph);
+  ConfigProto config_proto;
+  auto shape_hints = AttrValue();
+  shape_hints.set_s("node1:{1,2;3,4}.node2:{1;2}");
+
+  auto& rewriter_config =
+      *config_proto.mutable_graph_options()->mutable_rewrite_options();
+  rewriter_config.add_optimizers("ngraph-optimizer");
+  rewriter_config.set_min_graph_nodes(-1);
+  rewriter_config.set_meta_optimizer_iterations(RewriterConfig::ONE);
+  auto* custom_config = rewriter_config.add_custom_optimizers();
+  custom_config->set_name("ngraph-optimizer");
+  (*custom_config->mutable_parameter_map())["_shape_hints"] = shape_hints;
+
+  // Run grappler
+  tensorflow::grappler::MetaOptimizer optimizer(nullptr, config_proto);
+  GraphDef output;
+  // const Status status = optimizer.Optimize(nullptr, item, &output);
+  ASSERT_OK(optimizer.Optimize(nullptr, item, &output));
+
+  // GraphDef to Graph
+  Graph output_graph(OpRegistry::Global());
+  GraphConstructorOptions opts;
+  opts.allow_internal_ops = true;
+  ASSERT_OK(ConvertGraphDefToGraph(opts, output, &output_graph));
+
+  
 }
 }
 }

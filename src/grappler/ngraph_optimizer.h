@@ -24,7 +24,7 @@
 #include "tensorflow/core/graph/graph_def_builder.h"
 #include "tensorflow/core/graph/node_builder.h"
 #include "tensorflow/core/grappler/grappler_item.h"
-#include "tensorflow/core/grappler/grappler_item_builder.h"
+//#include "tensorflow/core/grappler/grappler_item_builder.h"
 #include "tensorflow/core/grappler/optimizers/custom_graph_optimizer.h"
 
 #include "ngraph_add_identityn.h"
