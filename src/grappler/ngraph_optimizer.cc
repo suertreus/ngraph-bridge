@@ -22,6 +22,9 @@
 #include "tensorflow/core/protobuf/meta_graph.pb.h"
 #include "tensorflow/core/grappler/costs/graph_properties.h"
 
+#include "tensorflow/core/framework/graph_def_util.h"
+#include "tensorflow/core/framework/node_def_builder.h"
+
 #include "tensorflow/core/framework/attr_value.pb.h"
 #include "tensorflow/core/framework/node_def.pb.h"
 #include "tensorflow/core/grappler/clusters/cluster.h"
@@ -111,20 +114,71 @@ Status NgraphOptimizer::Optimize(tensorflow::grappler::Cluster* cluster,
   NGRAPH_VLOG(3) << "NGTF_OPTIMIZER: Here at NgraphOptimizer ";
   NGRAPH_VLOG(5) << "NGTF_OPTIMIZER: grappler item id " << item.id;
 
+  tensorflow::grappler::GrapplerItem item_copy(item);
+  cout <<  SummarizeGraphDef(item_copy.graph);
 
-  //MetaGraphDef meta_graph;
-  //*meta_graph.mutable_graph_def() = item.graph;
-  std::unique_ptr<grappler::GrapplerItem> gi{new grappler::GrapplerItem};
-  GraphDef g_copy;
-  g_copy.CopyFrom(item.graph);
-  cout << g_copy.node_size() << "ccccccc\n";
-  gi->WithGraph(std::move(g_copy));
+  set<string> inp_placeholders;
+  vector<int> locations;
+  int ctr = 0;
+  for (auto n : item_copy.graph.node()){
+    if (n.op() == "Placeholder"){
+      inp_placeholders.insert(n.name());
+      locations.push_back(ctr);
+    }
+    ctr++;
+  }
 
-  cout << g_copy.node_size() << "ccccccc\n";
-  cout << item.graph.node_size() << "ccccccc\n";
+  /*
+  for (auto itr : inp_placeholders) {
+    NodeDef* node_def = item_copy.graph.add_node();
+    Status status = NodeDefBuilder(itr + "_const", "Const")
+                        .Attr("T", DT_FLOAT)
+                        .Finalize(node_def);
+  }*/
+  for (auto x : locations){
+    auto ndef = item_copy.graph.mutable_node(x);
+    *(ndef->mutable_op()) = "Const";
+    AttrValue av;
+    TensorProto tensor_proto;
+    // TODO: set appropriate dtype
+    tensor_proto.set_dtype(DT_FLOAT);
+    // TODO: use correct dim
+    int dim = 2;
+    tensor_proto.mutable_tensor_shape()->add_dim()->set_size(dim);
+    for (int i = 0; i < dim; ++i) {
+      tensor_proto.add_float_val(1);
+    }
+    *(av.mutable_tensor()) = tensor_proto;
+    (*ndef->mutable_attr())["value"] = av;
+  }
+  
+  for (auto n : item_copy.graph.node()){
+    for (int inp_idx = 0; inp_idx < n.input_size(); inp_idx++){
+      string inp_name = n.input(inp_idx);
+      auto split_control = ng::split(inp_name, '^');
+      auto split_out_port = ng::split(split_control[0], ':');
+      string op_name = split_out_port[0];
+      inp_placeholders.find(op_name);
+      inp_placeholders.end();
+      if (inp_placeholders.find(op_name) != inp_placeholders.end()) {
+        // TODO: DO NOT MODIFY item_copy.graph while looping over it
+        // This node has a placeholder as an input
+        //NodeDef* node_def = item_copy.graph.add_node();
+        // TODO: replace DT_FLOAT with type from placeholder
+        // TODO: add device from placeholder
+        // TODO check if other stuff needs to be added
+        //Status status = NodeDefBuilder(n.name(), "Const")
+        //                .Attr("T", DT_FLOAT)
+        //                .Finalize(node_def);
+        // TODO: handle Status
 
+        //*(n.mutable_input(inp_idx)) = 
+        
+      }
+    }
+  }
 
-  grappler::GraphProperties properties(*gi);
+  grappler::GraphProperties properties(item_copy);
   Status s = properties.InferStatically(true);
   GraphDef output_graph_def;
   cout << "HERE1\n";
@@ -133,6 +187,8 @@ Status NgraphOptimizer::Optimize(tensorflow::grappler::Cluster* cluster,
     cout << "TODO: oops\n";
   }
   cout << "HERE2\n";
+
+
 
   // TODO: this for loop is not entered. node_size==0
   for (int ii = 0; ii < output_graph_def.node_size(); ii++){
@@ -146,6 +202,8 @@ Status NgraphOptimizer::Optimize(tensorflow::grappler::Cluster* cluster,
     cout << "\n";
     // _output_shapes
   }
+
+  cout <<  SummarizeGraphDef(output_graph_def);
 
   // TODO: Not producing right results
   for (const auto& node_name : vector<string>{"A", "B", "Add", "C", "Mul"}) {

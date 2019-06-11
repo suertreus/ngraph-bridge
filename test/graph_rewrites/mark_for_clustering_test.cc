@@ -94,7 +94,7 @@ TEST(MarkForClustering, SimpleTest) {
 TEST(MarkForClustering, ShapeHints) {
   // Create Graph
   Scope root = Scope::NewRootScope();
-  auto A = ops::Const(root.WithOpName("A"), {3.f, 2.f});
+  auto A = ops::Placeholder(root.WithOpName("A"), DataType::DT_FLOAT);
   auto B = ops::Const(root.WithOpName("B"), {3.f, 2.f});
   auto Add = ops::Add(root.WithOpName("Add"), A, B);
   auto C = ops::Const(root.WithOpName("C"), {3.f, 2.f});
