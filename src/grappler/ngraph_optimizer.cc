@@ -17,14 +17,24 @@
 #include "ngraph_optimizer.h"
 #include "ngraph_cluster_manager.h"
 
+#include "tensorflow/core/graph/graph.h"
+#include "tensorflow/core/graph/node_builder.h"
+#include "tensorflow/core/protobuf/meta_graph.pb.h"
+#include "tensorflow/core/grappler/costs/graph_properties.h"
+
 #include "tensorflow/core/framework/attr_value.pb.h"
 #include "tensorflow/core/framework/node_def.pb.h"
 #include "tensorflow/core/grappler/clusters/cluster.h"
-#include "tensorflow/core/grappler/grappler_item.h"
+
 #include "tensorflow/core/grappler/op_types.h"
 #include "tensorflow/core/grappler/optimizers/custom_graph_optimizer_registry.h"
 #include "tensorflow/core/grappler/utils.h"
 #include "tensorflow/core/platform/protobuf.h"
+
+
+
+
+
 
 #include <iomanip>
 #if defined NGRAPH_DISTRIBUTED
@@ -38,11 +48,63 @@ using namespace std;
 namespace tensorflow {
 namespace ngraph_bridge {
 
+Status NgraphOptimizer::shape_hints_parser(const string& raw_shape_hint) {
+  // Format of raw_shape_hint is expected to be:
+  // "node1:{1,2;3,4}.node2:{1;2}"
+  auto node_info = ng::split(raw_shape_hint, '.');
+  string node_name;
+  string hint;
+  for (auto i : node_info){
+    set<vector<int>> shape_hints_set;
+    auto name_and_info = ng::split(i, ':');
+    if (name_and_info.size() != 2){
+      return  errors::Internal("Expected to be of length 2, but got length ", name_and_info.size(), " after splitting ", i);
+    }
+    node_name = name_and_info[0];
+    hint = name_and_info[1];
+    if (hint[0] != '{' && hint[hint.size()-1] != '}'){
+      // TODO
+      return  errors::Internal("TODO");
+    }
+    auto individual_hints = ng::split(hint.substr(1,hint.size()-2), ';');
+    for (auto individual_hint : individual_hints) {
+      vector<int> shape_hint;
+      vector<string> dims = ng::split(individual_hint, ',');
+      std::transform(dims.begin(), dims.end(), std::back_inserter(shape_hint),
+               [](const std::string& str) { return std::stoi(str); });
+      shape_hints_set.insert(shape_hint);
+    }
+    shape_hints[node_name] = shape_hints_set;
+  }
+  return Status::OK();
+}
+
+Status NgraphOptimizer::Init(
+    const tensorflow::RewriterConfig_CustomGraphOptimizer* config) {
+  if (config == nullptr) {
+    NGRAPH_VLOG(3) << "NGTF_OPTIMIZER: config is null ";
+  } else {
+    NGRAPH_VLOG(3) << "NGTF_OPTIMIZER: config is not null ";
+    const auto params = config->parameter_map();
+    if (params.count("shape_hints")) {
+      TF_RETURN_IF_ERROR(shape_hints_parser(params.at("shape_hints").s()));
+    }
+  }
+  return Status::OK();
+}
+
 Status NgraphOptimizer::Optimize(tensorflow::grappler::Cluster* cluster,
                                  const tensorflow::grappler::GrapplerItem& item,
                                  GraphDef* output) {
   NGRAPH_VLOG(3) << "NGTF_OPTIMIZER: Here at NgraphOptimizer ";
   NGRAPH_VLOG(5) << "NGTF_OPTIMIZER: grappler item id " << item.id;
+
+
+  MetaGraphDef meta_graph;
+  *meta_graph.mutable_graph_def() = item.graph;
+  grappler::ItemConfig cfg;
+  std::unique_ptr<grappler::GrapplerItem> item =
+      GrapplerItemFromMetaGraphDef("0", meta_graph, cfg);
 
   // Convert the GraphDef to Graph
   GraphConstructorOptions opts;

@@ -23,6 +23,8 @@
 #include "tensorflow/core/graph/graph_constructor.h"
 #include "tensorflow/core/graph/graph_def_builder.h"
 #include "tensorflow/core/graph/node_builder.h"
+#include "tensorflow/core/grappler/grappler_item.h"
+#include "tensorflow/core/grappler/grappler_item_builder.h"
 #include "tensorflow/core/grappler/optimizers/custom_graph_optimizer.h"
 
 #include "ngraph_add_identityn.h"
@@ -51,11 +53,6 @@ class NgraphOptimizer : public tensorflow::grappler::CustomGraphOptimizer {
 
   string name() const override { return "NgraphOptimizer"; };
 
-  Status Init(
-      const tensorflow::RewriterConfig_CustomGraphOptimizer* config) override {
-    return Status::OK();
-  }
-
   // This is a grappler pass to change a TF graph to nGraph enabled TF graph.
   // It accepts TF nodes that can be processed by nGraph and encapsulates them
   // into NGraphEncapsulateOp
@@ -69,6 +66,9 @@ class NgraphOptimizer : public tensorflow::grappler::CustomGraphOptimizer {
                   const tensorflow::grappler::GrapplerItem&,
                   GraphDef*) override;
 
+  Status Init(const tensorflow::RewriterConfig_CustomGraphOptimizer* config =
+                  nullptr) override;
+
   void Feedback(tensorflow::grappler::Cluster*,
                 const tensorflow::grappler::GrapplerItem&, const GraphDef&,
                 double) override;
@@ -80,6 +80,9 @@ class NgraphOptimizer : public tensorflow::grappler::CustomGraphOptimizer {
 
   static int s_serial_counter GUARDED_BY(s_serial_counter_mutex);
   static mutex s_serial_counter_mutex;
+  map<string, set<vector<int>>> shape_hints;
+
+  Status shape_hints_parser(const string& raw_shape_hint);
 };
 
 int NgraphOptimizer::s_serial_counter = 0;
