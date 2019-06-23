@@ -271,7 +271,12 @@ int main(int argc, char** argv) {
     next_thread.join();
   }
 
-  // Now
+  // Now add the verification if the label
+  if (labels != "") {
+    cout << "Printing labels\n";
+    TF_CHECK_OK(PrintTopLabels(outputs, labels));
+  }
+
   std::cout << "Done\n";
   return 0;
 }

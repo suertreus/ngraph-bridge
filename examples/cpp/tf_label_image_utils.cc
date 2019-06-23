@@ -304,7 +304,10 @@ Status PrintTopLabels(const std::vector<Tensor>& outputs,
   for (int pos = 0; pos < how_many_labels; ++pos) {
     const int label_index = indices_flat(pos);
     const float score = scores_flat(pos);
-    LOG(INFO) << labels[label_index] << " (" << label_index << "): " << score;
+    // LOG(INFO) << labels[label_index] << " (" << label_index << "): " <<
+    // score;
+    std::cout << labels[label_index] << " (" << label_index << "): " << score
+              << std::endl;
   }
   return Status::OK();
 }
