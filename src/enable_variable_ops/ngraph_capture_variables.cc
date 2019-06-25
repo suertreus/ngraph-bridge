@@ -65,6 +65,9 @@ Status CaptureVariables(Graph* graph, std::set<string> skip_these_nodes) {
     if (NGraphPlacementRequested(node)) {
       // Check if the node is a VariableV2
       if (node->type_string() == "VariableV2") {
+        if (node->name() == "global_step") {
+          continue;
+        }
         NGRAPH_VLOG(4) << "Found Variable: " << node->name();
         // Add the Variable node to the ref list
         ref_list.insert(node);
