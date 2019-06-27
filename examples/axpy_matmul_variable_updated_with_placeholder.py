@@ -28,7 +28,7 @@ import tensorflow as tf
 from tensorflow.python.client import timeline
 import json, sys
 
-import ngraph_bridge
+#import ngraph_bridge
 
 print("TensorFlow version: ", tf.VERSION)
 
@@ -57,10 +57,10 @@ config = tf.ConfigProto(
             do_constant_folding=False,
             do_function_inlining=False,
         )))
-config_ngraph_enabled = ngraph_bridge.update_config(config)
+#config = ngraph_bridge.update_config(config)
 
 # Create session and run
-with tf.Session(config=config_ngraph_enabled) as sess:
+with tf.Session(config=config) as sess:
     # Define the data
     needs_feeddict = sys.argv[0] == 'placeholder'
     inp_data = np.full((2048, 2048), 1.5, dtype=np.float32)
@@ -92,35 +92,34 @@ with tf.Session(config=config_ngraph_enabled) as sess:
 
 
 
-    # Create session and run
-    with tf.Session(config=config_ngraph_enabled) as sess:
-        print("Python: Running with Session")
-        options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-        run_metadata = tf.RunMetadata()
 
-        event_times = []
-        sess.run(tf.global_variables_initializer())
-        summ_writer = tf.summary.FileWriter('summary', sess.graph)
-        for i in range(10):
-            if needs_feeddict:
-                feed_dict = {}
-            else:
-                feed_dict = {a:inp_data}
-            (result_axpy) = sess.run((train_op),
-                                    options=options,
-                                    run_metadata=run_metadata, feed_dict = feed_dict),
-            print(i)
-            event_times.append(timeline.Timeline(run_metadata.step_stats))
+    print("Python: Running with Session")
+    options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+    run_metadata = tf.RunMetadata()
 
-        print("Final value: ", x.eval())
-        print("Writing event trace")
-        with open('tf_event_trace.json', 'w') as f:
-            f.write("[\n")
-            for event in event_times:
-                chrome_trace = event.generate_chrome_trace_format(
-                    show_dataflow=False)
-                parsed_trace = json.loads(chrome_trace)
-                for tr in parsed_trace['traceEvents']:
-                    f.write(json.dumps(tr) + ',\n')
+    event_times = []
+    sess.run(tf.global_variables_initializer())
+    summ_writer = tf.summary.FileWriter('summary', sess.graph)
+    for i in range(10):
+        if needs_feeddict:
+            feed_dict = {}
+        else:
+            feed_dict = {a:inp_data}
+        (result_axpy) = sess.run((train_op),
+                                options=options,
+                                run_metadata=run_metadata, feed_dict = feed_dict),
+        print(i)
+        event_times.append(timeline.Timeline(run_metadata.step_stats))
 
-    train_writer.add_graph(tf.get_default_graph())
+    print("Final value: ", x.eval())
+    print("Writing event trace")
+    with open('tf_event_trace.json', 'w') as f:
+        f.write("[\n")
+        for event in event_times:
+            chrome_trace = event.generate_chrome_trace_format(
+                show_dataflow=False)
+            parsed_trace = json.loads(chrome_trace)
+            for tr in parsed_trace['traceEvents']:
+                f.write(json.dumps(tr) + ',\n')
+
+train_writer.add_graph(tf.get_default_graph())
