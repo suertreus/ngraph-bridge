@@ -65,6 +65,7 @@ with tf.Session(config=config_ngraph_enabled) as sess:
         dataset = tf.data.Dataset.from_tensor_slices((np.stack([inp_data,inp_data]),))
         dataset = dataset.map(lambda x : tf.squeeze(x))
         dataset = dataset.repeat()
+        dataset = dataset.prefetch(5)
         iterator = dataset.make_initializable_iterator()
         sess.run(iterator.initializer)
         a = iterator.get_next()
