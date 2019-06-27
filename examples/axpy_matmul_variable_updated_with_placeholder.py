@@ -37,6 +37,14 @@ graph_location = "/tmp/" + getpass.getuser() + "/tensorboard-logs/test"
 print('Saving graph to: %s' % graph_location)
 train_writer = tf.summary.FileWriter(graph_location)
 
+def preprocess_fn(image):
+    with tf.variable_scope("preprocess"):
+        mean = tf.math.reduce_mean(image)
+        devs_squared = tf.square(image - mean)
+        var = tf.reduce_mean(devs_squared)
+        final = (image-mean)/var
+    return final
+
 # Configure the session
 config = tf.ConfigProto(
     allow_soft_placement=True,
@@ -64,6 +72,7 @@ with tf.Session(config=config_ngraph_enabled) as sess:
         #dataset = tf.data.Dataset.from_tensor_slices((np.expand_dims(inp_data, 1),))
         dataset = tf.data.Dataset.from_tensor_slices((np.stack([inp_data,inp_data]),))
         dataset = dataset.map(lambda x : tf.squeeze(x))
+        dataset = dataset.map(lambda x : preprocess_fn(x))
         dataset = dataset.repeat()
         dataset = dataset.prefetch(5)
         iterator = dataset.make_initializable_iterator()
@@ -91,6 +100,7 @@ with tf.Session(config=config_ngraph_enabled) as sess:
 
         event_times = []
         sess.run(tf.global_variables_initializer())
+        summ_writer = tf.summary.FileWriter('summary', sess.graph)
         for i in range(10):
             if needs_feeddict:
                 feed_dict = {}
