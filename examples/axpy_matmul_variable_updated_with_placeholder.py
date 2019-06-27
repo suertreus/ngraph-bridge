@@ -43,6 +43,11 @@ def preprocess_fn(image):
         devs_squared = tf.square(image - mean)
         var = tf.reduce_mean(devs_squared)
         final = (image-mean)/var
+        #craziness, just to do more work
+        final = final*final + final
+        final = tf.matmul(final,final)
+        
+
     return final
 
 # Configure the session
