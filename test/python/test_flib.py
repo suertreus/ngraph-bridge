@@ -29,7 +29,7 @@ from common import NgraphTest
 
 class TestFlibOperations(NgraphTest):
 
-    @pytest.mark.skipif(platform.system()=='Darwin', reason='Only for Linux')
+    @pytest.mark.skipif(platform.system() == 'Darwin', reason='Only for Linux')
     def test_flib_1(self):
         graph = self.import_pbtxt('flib_graph_1.pbtxt')
         with graph.as_default() as g:

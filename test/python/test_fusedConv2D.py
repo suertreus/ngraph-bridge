@@ -51,8 +51,7 @@ class TestFusedConv2D(NgraphTest):
         ('relu6',),
         ('',),
     ))
-
-    @pytest.mark.skipif(platform.system()=='Darwin', reason='Only for Linux')
+    @pytest.mark.skipif(platform.system() == 'Darwin', reason='Only for Linux')
     def test_fusedconv2d_bias_relu(self, relutype):
         inp_values = np.random.rand(*self.INPUT_SIZES)
         filt_values = np.random.rand(*self.FILTER_SIZES)
@@ -82,8 +81,7 @@ class TestFusedConv2D(NgraphTest):
         ('relu6',),
         ('',),
     ))
-    
-    @pytest.mark.skipif(platform.system()=='Darwin', reason='Only for Linux')
+    @pytest.mark.skipif(platform.system() == 'Darwin', reason='Only for Linux')
     def test_fusedconv2d_batchnorm(self, relutype):
         inp_values = np.random.rand(*self.INPUT_SIZES)
         filt_values = np.random.rand(*self.FILTER_SIZES)
@@ -124,7 +122,7 @@ class TestFusedConv2D(NgraphTest):
             rtol=0,
             atol=5e-5)
 
-    @pytest.mark.skipif(platform.system()=='Darwin', reason='Only for Linux')
+    @pytest.mark.skipif(platform.system() == 'Darwin', reason='Only for Linux')
     def test_fusedconv2d_squeeze_bias(self):
         inp_values = np.random.rand(*self.INPUT_SIZES)
         filt_values = np.random.rand(*self.FILTER_SIZES)

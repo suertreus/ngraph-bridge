@@ -211,7 +211,8 @@ def run_tensorflow_pytests(venv_dir, build_dir, ngraph_tf_src_dir, tf_src_dir):
     command_executor([
         "python", test_script, "--tensorflow_path", tf_src_dir,
         "--run_tests_from_file", test_manifest_file
-    ], verbose=True)
+    ],
+                     verbose=True)
 
     os.chdir(root_pwd)
 
