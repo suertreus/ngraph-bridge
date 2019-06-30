@@ -346,6 +346,7 @@ def copy_tf_to_artifacts(artifacts_dir, tf_prebuilt):
     else:
         tf_cc_lib_file = os.path.abspath(tf_prebuilt + '/libtensorflow_cc.so.1')
         tf_cc_fmwk_file = os.path.abspath(tf_prebuilt + '/' + tf_fmwk_lib_name)
+    print("PWD: ", os.getcwd())
     print("Copying %s to %s" % (tf_cc_lib_file, artifacts_dir))
     shutil.copy(tf_cc_lib_file, artifacts_dir)
 
