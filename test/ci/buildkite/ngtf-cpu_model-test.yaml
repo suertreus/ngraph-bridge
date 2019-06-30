@@ -40,7 +40,7 @@
       cd test/model_level_tests
       python test_main.py --models benchmarks,MLP,ngraph-models,nmt,tfmodels,unet --run_basic_tests; cd ../..
 
-    label: ":spider_web: Model tests"
+    label: ":kafka: Model tests" 
     timeout_in_minutes: 40
     agents:
     - "queue=cpu"
