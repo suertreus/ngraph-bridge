@@ -55,10 +55,6 @@ def main():
     venv_dir = 'build_cmake/venv-tf-py3'
     tf_src_dir = 'build_cmake/tensorflow'
 
-    if (platform.system() != 'Darwin'):
-        # Run the bazel based build
-        run_bazel_build_test(venv_dir, build_dir)
-
     os.environ['NGRAPH_TF_BACKEND'] = 'CPU'
 
     load_venv(venv_dir)
