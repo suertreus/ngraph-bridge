@@ -44,7 +44,7 @@ def is_venv():
             (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
 
 
-def command_executor(cmd, verbose=False, msg=None, stdout=None):
+def command_executor(cmd, verbose=False, msg=None, stdout=None, stderr=None):
     '''
     Executes the command.
     Example: 
@@ -56,7 +56,7 @@ def command_executor(cmd, verbose=False, msg=None, stdout=None):
     if verbose:
         tag = 'Running COMMAND: ' if msg is None else msg
         print(tag + cmd)
-    if (call(shlex.split(cmd), stdout=stdout) != 0):
+    if (call(shlex.split(cmd), stdout=stdout, stderr=stderr) != 0):
         raise Exception("Error running command: " + cmd)
 
 
