@@ -79,9 +79,8 @@ def main():
     print('\033[1;35mTensorFlow Build finished\033[0m')
 
     print('When building ngraph-bridge using this prebuilt tensorflow, use:')
-    print('\033[3;34mpython3 build_ngtf.py --use_tensorflow_from_location ' + 
-        os.path.abspath(arguments.output_dir) + 
-        '\033[1;0m')
+    print('\033[3;34mpython3 build_ngtf.py --use_tensorflow_from_location ' +
+          os.path.abspath(arguments.output_dir) + '\033[1;0m')
 
 
 if __name__ == '__main__':
@@ -97,5 +96,3 @@ if __name__ == '__main__':
     # cd ..; mkdir ngtf_2; cd ngtf_2
     # git clone https://github.com/tensorflow/ngraph-bridge.git
     # ./build_ngtf.py --use_tensorflow_from_location /prebuilt/tf/dir
-
-
