@@ -78,9 +78,10 @@
   - command: |
       source /usr/local/var/buildkite-agent/artifacts/$BUILDKITE_BUILD_ID/venv/bin/activate 
       PYTHONPATH=`pwd` python3 test/ci/buildkite/test_runner.py \
-        --artifacts /usr/local/var/buildkite-agent/artifacts/$BUILDKITE_BUILD_ID --test_resnet
+        --artifacts /usr/local/var/buildkite-agent/artifacts/$BUILDKITE_BUILD_ID --test_resnet 
     label: ":bar_chart: ResNet50"
     timeout_in_minutes: 30
+    soft_fail: true
     agents:
     - "queue=mac"
 
