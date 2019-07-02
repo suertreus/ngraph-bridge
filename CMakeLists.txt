@@ -135,7 +135,7 @@ endif()
 if(APPLE)
     set(LIBNGRAPH_SO "libngraph.dylib")
 else()
-    set(LIBNGRAPH_SO "libngraph.so")
+    set(LIBNGRAPH_A "libngraph.a")
 endif(APPLE)
 
 # Build options
@@ -144,6 +144,7 @@ option(NGRAPH_ARTIFACTS_DIR "Where would nGraph be installed after build" FALSE)
 option(UNIT_TEST_ENABLE "Control the building of unit tests" FALSE)
 option(UNIT_TEST_TF_CC_DIR "Location where TensorFlow CC library is located" FALSE)
 option(NGRAPH_DISTRIBUTED_ENABLE "Add distributed mode to the CPU backend" FALSE)
+option(NGRAPH_BRIDGE_STATIC_LIB_ENABLE "Enable build nGraph bridge static library" TRUE)
 
 
 find_package(PlaidML CONFIG)
@@ -239,8 +240,8 @@ if (NOT USE_PRE_BUILT_NGRAPH)
     ExternalProject_Add(
         ext_ngraph
         GIT_REPOSITORY https://github.com/NervanaSystems/ngraph
-        GIT_TAG v0.20.0-rc.0
-        CMAKE_ARGS 
+        GIT_TAG remotes/origin/jiminha/static_v0.20.0.rc0
+        CMAKE_ARGS
             -DNGRAPH_DISTRIBUTED_ENABLE=${NGRAPH_DISTRIBUTED_ENABLE}
             -DNGRAPH_INSTALL_PREFIX=${NGRAPH_ARTIFACTS_DIR}
             -DNGRAPH_USE_CXX_ABI=${TensorFlow_CXX_ABI}
@@ -268,19 +269,19 @@ set(NGRAPH_INSTALL_DIR ${NGRAPH_ARTIFACTS_DIR})
 
 
 if(OS_VERSION STREQUAL "\"centos\"")
-	set(NGRAPH_IMPORTED_LOCATION ${NGRAPH_INSTALL_DIR}/lib64/${LIBNGRAPH_SO})
+	set(NGRAPH_IMPORTED_LOCATION_STATIC ${NGRAPH_INSTALL_DIR}/lib64/${LIBNGRAPH_A})
 else()
-	set(NGRAPH_IMPORTED_LOCATION ${NGRAPH_INSTALL_DIR}/lib/${LIBNGRAPH_SO})
+	set(NGRAPH_IMPORTED_LOCATION_STATIC ${NGRAPH_INSTALL_DIR}/lib/${LIBNGRAPH_A})
 endif()
 
-add_library(ngraph_lib SHARED IMPORTED)
+add_library(ngraph_lib_static STATIC IMPORTED)
 set_target_properties(
-    ngraph_lib
+    ngraph_lib_static
     PROPERTIES IMPORTED_LOCATION
-    ${NGRAPH_IMPORTED_LOCATION}
+    ${NGRAPH_IMPORTED_LOCATION_STATIC}
 )
 
-add_dependencies(ngraph_lib ext_ngraph)
+add_dependencies(ngraph_lib_static ext_ngraph)
 
 # Add the directories to be built
 add_subdirectory(third-party)

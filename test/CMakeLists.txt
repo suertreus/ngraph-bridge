@@ -88,15 +88,28 @@ if (APPLE)
     set(NGRAPH_TF_CXX11_ABI 0)
 endif()
 
-target_link_libraries(
-    gtest_ngtf
-    ngraph_bridge
-    ngraph_lib
-    libgtest
-    pthread
-    tensorflow_framework_lib
-    tensorflow_cc_lib
-)
+if (NGRAPH_BRIDGE_STATIC_LIB_ENABLE)
+    target_link_libraries(
+        gtest_ngtf -Wl,--whole-archive
+        ngraph_bridge_static
+        ngraph_lib_static -Wl,--no-whole-archive
+        dl
+        libgtest
+        pthread
+        ${TensorFlow_FRAMEWORK_LIBRARY}
+        tensorflow_cc_lib
+    )
+else()
+    target_link_libraries(
+        gtest_ngtf
+        ngraph_bridge
+        ngraph_lib
+        libgtest
+        pthread
+        ${TensorFlow_FRAMEWORK_LIBRARY}
+        tensorflow_cc_lib
+    )
+endif()
 
 add_subdirectory(python)
 
@@ -107,11 +120,11 @@ else()
 endif()
 
 # First install the libngraph_bridge.so and headers
-install(TARGETS gtest_ngtf DESTINATION ${CMAKE_INSTALL_PREFIX}/test)  
+install(TARGETS gtest_ngtf DESTINATION ${CMAKE_INSTALL_PREFIX}/test)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/test_axpy.pbtxt DESTINATION ${CMAKE_INSTALL_PREFIX}/test)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/test_axpy_launchop.pbtxt DESTINATION ${CMAKE_INSTALL_PREFIX}/test)
 install(
-    DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/python 
+    DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/python
     DESTINATION ${CMAKE_INSTALL_PREFIX}/test
     FILES_MATCHING PATTERN "*.py"
 )

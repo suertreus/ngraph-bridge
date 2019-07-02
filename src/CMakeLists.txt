@@ -12,6 +12,7 @@
 # limitations under the License.
 
 set(LIB_NAME ngraph_bridge)
+set(LIB_NAME_STATIC ngraph_bridge_static)
 
 include_directories(${TensorFlow_INCLUDE_DIR})
 include_directories(${TensorFlow_INCLUDE_DIR}/external/nsync/public)
@@ -30,13 +31,14 @@ message(STATUS "Shared Link Flags: ${CMAKE_SHARED_LINKER_FLAGS}")
 #-----------------------------------------------------------------------------------------------
 # Compiler-specific logic...
 #-----------------------------------------------------------------------------------------------
-set(SRC 
+set(SRC
    ngraph_api.cc
    ngraph_assign_clusters.cc
    ngraph_builder.cc
    ngraph_backend_manager.cc
    ngraph_capture_variables.cc
    ngraph_cluster_manager.cc
+   ngraph_conversions.cc
    ngraph_deassign_clusters.cc
    ngraph_encapsulate_clusters.cc
    ngraph_encapsulate_op.cc
@@ -74,12 +76,12 @@ if(NGRAPH_TF_ENABLE_VARIABLES_AND_OPTIMIZERS)
     list(APPEND SRC enable_variable_ops/ngraph_replace_op_utilities.cc)
     list(APPEND SRC enable_variable_ops/ngraph_replace_variable_modifiers.cc)
     list(APPEND SRC enable_variable_ops/ngraph_variable_modifiers.cc)
-    
+
     add_definitions(-DNGRAPH_TF_ENABLE_VARIABLES_AND_OPTIMIZERS)
 endif()
 
 
-if(NGRAPH_TF_USE_GRAPPLER_OPTIMIZER)            
+if(NGRAPH_TF_USE_GRAPPLER_OPTIMIZER)
     list(REMOVE_ITEM SRC ngraph_rewrite_pass.cc)
     list(APPEND SRC grappler/ngraph_optimizer.cc)
     list(APPEND SRC grappler/ngraph_add_identityn.cc)
@@ -90,14 +92,14 @@ message(STATUS "NGRAPH_TF_USE_GRAPPLER_OPTIMIZER: ${NGRAPH_TF_USE_GRAPPLER_OPTIM
 
 add_library(${LIB_NAME} SHARED ${SRC})
 
-target_link_libraries( ${LIB_NAME} ngraph_logger) 
+target_link_libraries( ${LIB_NAME} ngraph_logger)
 target_link_libraries( ${LIB_NAME} tensorflow_framework_lib )
-target_link_libraries( ${LIB_NAME} ngraph_lib )
+target_link_libraries( ${LIB_NAME} ngraph_lib_static)
 target_link_libraries( ${LIB_NAME} absl_algorithm )
 target_link_libraries( ${LIB_NAME} absl_container )
 target_link_libraries( ${LIB_NAME} absl_strings )
 
-target_compile_definitions( 
+target_compile_definitions(
     ${LIB_NAME} PRIVATE
     _GLIBCXX_USE_CXX11_ABI=${TensorFlow_CXX_ABI}
 )
@@ -105,9 +107,26 @@ target_compile_definitions(
 target_include_directories(${LIB_NAME} PUBLIC "${NGRAPH_INSTALL_DIR}/include")
 target_include_directories(${LIB_NAME} PUBLIC "${NGRAPH_DEVICE_INCLUDE_PATH}")
 
+if (NGRAPH_BRIDGE_STATIC_LIB_ENABLE)
+    add_library(${LIB_NAME_STATIC} STATIC ${SRC})
+
+    target_link_libraries( ${LIB_NAME_STATIC} ngraph_logger)
+    target_link_libraries( ${LIB_NAME_STATIC} ${TensorFlow_FRAMEWORK_LIBRARY})
+    target_link_libraries( ${LIB_NAME_STATIC} ngraph_lib_static)
+    target_link_libraries( ${LIB_NAME_STATIC} absl_algorithm )
+    target_link_libraries( ${LIB_NAME_STATIC} absl_container )
+    target_link_libraries( ${LIB_NAME_STATIC} absl_strings )
+
+    target_compile_definitions(
+    ${LIB_NAME_STATIC} PRIVATE
+    _GLIBCXX_USE_CXX11_ABI=${TensorFlow_CXX_ABI}
+    )
+    target_include_directories(${LIB_NAME_STATIC} PUBLIC "${NGRAPH_INSTALL_DIR}/include")
+    target_include_directories(${LIB_NAME_STATIC} PUBLIC "${NGRAPH_DEVICE_INCLUDE_PATH}")
+endif()
 
 #------------------------------------------------------------------------------
-#installation 
+#installation
 #------------------------------------------------------------------------------
 if (DEFINED NGRAPH_TF_INSTALL_PREFIX)
     set(CMAKE_INSTALL_PREFIX ${NGRAPH_TF_INSTALL_PREFIX})
@@ -124,9 +143,14 @@ endif()
 message(STATUS "NGTF_INSTALL_LIB_DIR: ${NGTF_INSTALL_LIB_DIR}")
 
 # First install the libngraph_bridge.so and headers
-install(TARGETS ${LIB_NAME} DESTINATION "${NGTF_INSTALL_LIB_DIR}")  
+install(TARGETS ${LIB_NAME} DESTINATION "${NGTF_INSTALL_LIB_DIR}")
 install(FILES ngraph_backend_manager.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 
+
+if (NGRAPH_BRIDGE_STATIC_LIB_ENABLE)
+    # First install the libngraph_bridge_static.a and headers
+    install(TARGETS ${LIB_NAME_STATIC} DESTINATION "${NGTF_INSTALL_LIB_DIR}")
+endif()
 
 # Next install all the other prerequisites
 if(OS_VERSION STREQUAL "\"centos\"")
@@ -140,9 +164,9 @@ if(DEFINED NGRAPH_TOOLS_ENABLE)
 	install(DIRECTORY ${NGRAPH_INSTALL_DIR}/bin/ DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" )
 endif()
 
-# Now create the Python pip package. The following variables are passed to the 
+# Now create the Python pip package. The following variables are passed to the
 # CreatePipWhl.cmake
-# CMake "install" target "CODE" will propagate these variables to the 
+# CMake "install" target "CODE" will propagate these variables to the
 # target "SCRIPT" so that the "SCRIPT" (in ths case CreatePipWhl.cmake)
 # So any variable that we need to propagate needs to be added here
 install(CODE "set(OS_VERSION ${OS_VERSION})")

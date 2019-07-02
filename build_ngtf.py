@@ -24,7 +24,7 @@ def main():
     '''
 
     # Component versions
-    ngraph_version = "v0.20.0-rc.0"
+    ngraph_version = "remotes/origin/jiminha/static_v0.20.0.rc0"
     tf_version = "v1.13.1"
 
     # Command line parser options
@@ -229,6 +229,7 @@ def main():
         "-DNGRAPH_DEBUG_ENABLE=NO",
         "-DNGRAPH_TARGET_ARCH=" + target_arch,
         "-DNGRAPH_TUNE_ARCH=" + target_arch,
+        "-DNGRAPH_STATIC_LIB_ENABLE=TRUE",
     ]
 
     if arguments.debug_build:

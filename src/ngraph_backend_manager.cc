@@ -40,6 +40,13 @@ std::map<std::string, int> BackendManager::ref_count_each_backend_;
 
 Status BackendManager::SetBackendName(const string& backend_name) {
   std::lock_guard<std::mutex> lock(BackendManager::ng_backend_name_mutex_);
+
+  ng_supported_backends =
+       ng::runtime::BackendManager::get_registered_backends();
+  ng_supported_backends_.clear();
+  ng_supported_backends_.insert(
+       ng_supported_backends.begin(), ng_supported_backends.end());
+
   if (backend_name.empty() || !IsSupportedBackend(backend_name)) {
     return errors::Internal("Backend ", backend_name,
                             " is not supported on nGraph");
