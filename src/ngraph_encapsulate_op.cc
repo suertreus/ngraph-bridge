@@ -343,6 +343,13 @@ class NGraphEncapsulateOp : public OpKernel {
       NGRAPH_VLOG(1) << "Compilation cache miss: " << ctx->op_kernel().name();
       TF_RETURN_IF_ERROR(Builder::TranslateGraph(input_shapes, static_input_map,
                                                  &m_graph, ng_function));
+      NGRAPH_VLOG(2) << "[TF to NG]: TranslateGraph done";
+      NGRAPH_VLOG(2) << "[TF to NG]: ng function name: " << ng_function->get_name();
+      for (auto param : ng_function->get_parameters()) {
+        NGRAPH_VLOG(2) << "[TF to NG]: Params: " << param->get_name();
+      }
+      NGRAPH_VLOG(2) << "[TF to NG]: Num outs: " << ng_function->get_output_size();
+
       ng_function->set_friendly_name(name());
 
       auto function_size = ng_function->get_graph_size() / 1024;  // kb unit
