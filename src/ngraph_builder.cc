@@ -96,7 +96,8 @@ std::shared_ptr<TOpType> ConstructNgNode(const std::string& op_name,
   auto ng_node = std::make_shared<TOpType>(std::forward<TArg>(Args)...);
   ng_node->set_friendly_name(op_name);
   ng_node->add_provenance_tag(op_name);
-  NGRAPH_VLOG(2) << "[TF to NG] In ConstructNgNode: For TF op " << op_name << " constructing ng node " << ng_node->get_name();
+  NGRAPH_VLOG(2) << "[TF to NG] In ConstructNgNode: For TF op " << op_name
+                 << " constructing ng node " << ng_node->get_name();
   return ng_node;
 }
 
@@ -4944,8 +4945,8 @@ Status Builder::TranslateGraph(
   // Now create the nGraph ops from TensorFlow ops.
   //
   for (auto op : tf_ops) {
-    NGRAPH_VLOG(2) << "[TF to NG] Constructing op " << op->name() << " which is "
-                   << op->type_string();
+    NGRAPH_VLOG(2) << "[TF to NG] Constructing op " << op->name()
+                   << " which is " << op->type_string();
 
     const function<Status(const Node*, const std::vector<const Tensor*>&,
                           Builder::OpMap&)>* op_fun;
