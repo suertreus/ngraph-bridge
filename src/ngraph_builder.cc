@@ -4973,6 +4973,19 @@ Status Builder::TranslateGraph(
                               op->def().DebugString(), "\n", "what(): ",
                               e.what());
     }
+
+    if (std::getenv("NGRAPH_TF_DUMP_INTERMEDIATE_NGFUNCTIONS") != nullptr) {
+      auto ng_function_intermediate =
+          make_shared<ng::Function>(ng_op_map[op->name()], ng_parameter_list);
+      string s(op->name());
+      std::replace(s.begin(), s.end(), '/', '-');
+      string intermediate_filename =
+          "tf_function_intermediate__" + s + "_numnodes_" +
+          to_string((ng_function_intermediate->get_ops()).size()) + ".json";
+      NGRAPH_VLOG(2) << "[TF to NG] Dumping Intermediate: "
+                     << intermediate_filename << "-------";
+      NgraphSerialize(intermediate_filename, ng_function_intermediate);
+    }
   }
 
   //
