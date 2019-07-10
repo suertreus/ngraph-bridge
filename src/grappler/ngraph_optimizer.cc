@@ -291,6 +291,7 @@ void NgraphOptimizer::DumpGraphs(Graph& graph, int idx,
 
 int NgraphOptimizer::FreshIndex() {
   mutex_lock l(s_serial_counter_mutex);
+  cout << "FreshIndex: " << s_serial_counter << "\n";
   return s_serial_counter++;
 }
 
