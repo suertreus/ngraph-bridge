@@ -34,8 +34,9 @@ int64 MinNGraphVLogLevel();
 
 #define NGRAPH_VLOG_IS_ON(lvl) ((lvl) <= ::tensorflow::ngraph_bridge::MinNGraphVLogLevel())
 
-#define NGRAPH_VLOG(lvl)      \
-  if (NGRAPH_VLOG_IS_ON(lvl)) \
-  ::tensorflow::internal::LogMessage(__FILE__, __LINE__, tensorflow::INFO)
+#define NGRAPH_VLOG(lvl)                  \
+  switch (NGRAPH_VLOG_IS_ON(lvl) ? 1 : 0) \
+  case 1:                                 \
+    LOG(INFO)
 
 #endif  // NGRAPH_LOG_H_
