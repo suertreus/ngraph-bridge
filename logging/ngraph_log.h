@@ -22,12 +22,17 @@
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/macros.h"
 
-class NGraphLogMessage : public tensorflow::internal::LogMessage {
- public:
-  static tensorflow::int64 MinNGraphVLogLevel();
-};
+namespace tensorflow {
 
-#define NGRAPH_VLOG_IS_ON(lvl) ((lvl) <= NGraphLogMessage::MinNGraphVLogLevel())
+namespace ngraph_bridge {
+
+int64 MinNGraphVLogLevel();
+
+}  // namespace ngraph_bridge
+
+}  // namespace tensorflow
+
+#define NGRAPH_VLOG_IS_ON(lvl) ((lvl) <= ::tensorflow::ngraph_bridge::MinNGraphVLogLevel())
 
 #define NGRAPH_VLOG(lvl)      \
   if (NGRAPH_VLOG_IS_ON(lvl)) \
